@@ -28,7 +28,7 @@ import face_recognition
 from PIL import Image, ImageDraw
 
 # Load the image file
-image = face_recognition.load_image_file("friends.jpg")
+image = face_recognition.load_image_file("data/juhyeon1.jpg")
 
 # Find all face locations in the image
 face_locations = face_recognition.face_locations(image)

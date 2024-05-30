@@ -8,7 +8,7 @@ from insightface.app import FaceAnalysis
 import os
 
 # Check if the image file exists
-img_path = "C:/Users/hancomtst/Desktop/Nvidiaproject/o_family.jpg"
+img_path = "C:/Users/hancomtst/Desktop/Nvidiaproject/data/youjin1.png"
 if not os.path.exists(img_path):
     raise FileNotFoundError(f"No file found at {img_path}")
 
@@ -32,7 +32,7 @@ for face in faces:
     cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
 
 # Save the result
-output_path = "./o_family_output.jpg"
+output_path = "./youjin1.jpg"
 cv2.imwrite(output_path, img)
 
 print(f"Output saved to {output_path}")
