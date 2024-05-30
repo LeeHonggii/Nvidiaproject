@@ -1,1 +1,1 @@
-Codes fodler for video editing library using OpenCV
+Codes folder for video editing library using OpenCV
