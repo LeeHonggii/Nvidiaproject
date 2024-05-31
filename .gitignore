@@ -4,6 +4,7 @@ __pycache__
 # model path
 buffalo_l
 buffalo_l.zip
+models/
 
 # data
 data
