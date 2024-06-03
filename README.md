@@ -6,4 +6,4 @@ https://medium.com/@cavaldovinos/human-pose-estimation-pose-similarity-dc8bf9f78
 
 오리지널 소스 : 
 https://github.com/xuexingyu24/Real-time-human-pose-estimation-by-pytorch
-[프레임, [[좌표]]] 형식으로 리스트 생성 시도중
+demo_video 내 [프레임, [[좌표]]] 형식 리스트 반환 함수 생성 시도중
