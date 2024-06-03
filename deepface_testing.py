@@ -1,6 +1,7 @@
 from deepface import DeepFace
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2
 
 backends = [
   'opencv', 
@@ -14,13 +15,26 @@ backends = [
   'yunet',
   'centerface',
 ]
+models = [
+  "VGG-Face", 
+  "Facenet", 
+  "Facenet512", 
+  "OpenFace", 
+  "DeepFace", 
+  "DeepID", 
+  "ArcFace", 
+  "Dlib", 
+  "SFace",
+  "GhostFaceNet",
+]
+metrics = ["cosine", "euclidean", "euclidean_l2"]
 
 # Extract faces from each image
 faces_img1 = DeepFace.extract_faces(
-    img_path="data/wonbin3.jpg", detector_backend="mtcnn"
+    img_path="data/aespa3.jpg", detector_backend="mtcnn"
 )
 faces_img2 = DeepFace.extract_faces(
-    img_path="data/wonbin4.jpg", detector_backend="mtcnn"
+    img_path="data/aespa4.jpg", detector_backend="mtcnn"
 )
 
 # Function to safely attempt to display an image
@@ -55,15 +69,26 @@ for i, face_dict in enumerate(faces_img2):
 
 plt.show()
 
+def convert_to_rgb(image):
+    if image.ndim == 2:  # If the image is grayscale
+        return cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    elif image.shape[2] == 4:  # If the image has an alpha channel
+        return cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
+    return image  # If the image is already RGB
+
 def compare_faces(faces1, faces2):
     results = []
     for i, face_dict1 in enumerate(faces1):
         face1 = face_dict1.get("face")
+        if face1 is not None:
+            face1 = convert_to_rgb(face1)
         for j, face_dict2 in enumerate(faces2):
             face2 = face_dict2.get("face")
+            if face2 is not None:
+                face2 = convert_to_rgb(face2)
             if isinstance(face1, np.ndarray) and isinstance(face2, np.ndarray):
-                # Save the face images to temporary files and use those for verification
-                result = DeepFace.verify(face1, face2, detector_backend='mtcnn', enforce_detection=False)
+                # Perform verification directly on the extracted face images
+                result = DeepFace.verify(face1, face2, model_name=models[2], distance_metric=metrics[1], enforce_detection=False)
                 results.append((i, j, result['verified'], result['distance'], face1, face2))
     return results
 
