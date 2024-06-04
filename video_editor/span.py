@@ -53,26 +53,33 @@
 # moved_clip_bottom_right.close()
 # moved_clip_percentage.close()
 
-from moviepy.editor import VideoFileClip, CompositeVideoClip
+from moviepy.editor import VideoFileClip, CompositeVideoClip, concatenate_videoclips
 
-# 동영상 파일 경로 설정
-video_path = 'data/video.mp4'
+video_clip = VideoFileClip('data/video.mp4')
 
-# 동영상 불러오기
-video_clip = VideoFileClip(video_path)
-
-# 화면 크기 설정 (예: 원본 영상의 크기)
 screen_width, screen_height = video_clip.size
+print(screen_width, screen_height)
 
-# 클립을 5픽셀 우측으로 이동시키기
-moved_clip = video_clip.set_position((int(screen_width*0.1), 0))
+moved_clip = video_clip.set_position((-int(screen_width*0.1), 10))
 
-# CompositeVideoClip을 사용하여 화면을 지정하고 이동된 클립을 배치
-composite_clip = CompositeVideoClip([moved_clip], size=(screen_width, screen_height))
+# composite_clip = CompositeVideoClip([moved_clip], size=(screen_width, screen_height))
+# composite_clip = CompositeVideoClip([video_clip, moved_clip])
+composite_clip = CompositeVideoClip([moved_clip])
+# composite_clip = concatenate_videoclips([video_clip, composite_clip])
+# composite_clip = concatenate_videoclips([moved_clip])
+final_clip = []
+final_clip.append(video_clip)
+final_clip.append(composite_clip)
+final_clip = concatenate_videoclips(final_clip)
+
+screen_width, screen_height = composite_clip.size
+print(screen_width, screen_height)
 
 # 이동된 클립을 파일로 저장
 output_path = 'data/moved_video.mp4'
-composite_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
+# composite_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
+final_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
+
 
 # 메모리에서 동영상 클립 제거
 video_clip.close()

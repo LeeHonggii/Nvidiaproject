@@ -10,6 +10,7 @@ begin_time = time.time()
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 landmark_predictor = dlib.shape_predictor("data/shape_predictor_68_face_landmarks.dat")
 face_rec_model = dlib.face_recognition_model_v1("data/dlib_face_recognition_resnet_model_v1.dat")
+maxx = max
 
 sclip_list = [VideoFileClip("data/sync_ive_baddie_1.mp4"),
              VideoFileClip("data/sync_ive_baddie_2.mp4"),
@@ -17,18 +18,20 @@ sclip_list = [VideoFileClip("data/sync_ive_baddie_1.mp4"),
              VideoFileClip("data/sync_ive_baddie_4.mp4"),
              VideoFileClip("data/sync_ive_baddie_5.mp4"),
              VideoFileClip("data/sync_ive_baddie_6.mp4")]
-# random.shuffle(sclip_list)
+random.shuffle(sclip_list)
 
 sclip_rect = [[], [], [], [], [], []]
 tclip_list = []
 current = 0
 
-init_time = 20
-start_time = init_time
+iou_threshold = 0.5
+simularity_threshold = 0.6
+dissolve = 0.0
 
-total_duration = 2
-fraction = 0.10
-# total_duration = int(sclip_list[0].duration)
+init_time = 0
+total_duration = int(sclip_list[0].duration)
+fraction = 0.1
+# total_duration = 30
 # fraction = 0.1
 multiply = int(1 / fraction)
 t_start = int(init_time * multiply)
@@ -36,24 +39,22 @@ t_size = int(total_duration * multiply)
 print(f"fraction:{fraction}, multiply:{multiply}, t_size:{t_size}")
 
 # skip_min = 2
-# skip_max = 5
+# skip_max = 3
 # skip_end = skip_max * 2 * multiply
 # skip_index = 0
-skip_min = 0
+skip_min = 2
 skip_max = skip_min
 skip_end = skip_min
 skip_index = skip_end
-
-iou_threshold = 0.3
-simularity_threshold = 0.6
-dissolve = 0.0
 
 switch_count = 0
 face_mismatch_count = 0
 face_dectection_fail_count = 0
 insufficient_iou_count = 0
 
-maxx = max
+start_time = init_time
+move_x = 0
+move_y = 0
 
 def detect_faces(i, t):
     current_time = t / multiply
@@ -156,12 +157,22 @@ for t in range(t_size):
 
             if distance < simularity_threshold:
                 print(f"!!!SWITCH to {max_i} / max iou: {max_iou:.2f} / simularity: {distance:.2f} at {current_time}")
-                print(f"current rect: ({cx}, {cy}, {cw}, {ch}) / next rect: ({ix}, {iy}, {iw}, {ih})")
-                print(f"diff w: {cw-iw} / diff w%:{abs(cw-iw)/min(cw,iw)/100:.4f}%")
-                print(f"diff h: {ch-ih} / diff w%:{abs(ch-ih)/min(ch,ih)/100:.4f}%")
-                print(f"move x: {cx-ix} / move y: {cy-iy}")
+
                 if dissolve == 0:
-                    tclip_list.append(sclip_list[current].subclip(start_time, current_time))
+                    # if True:
+                    if move_x == 0 and move_y == 0:
+                        tclip_list.append(sclip_list[current].subclip(start_time, current_time))
+                    else:
+                        print(f"move x: {move_x} / move y: {move_y}")
+                        temp_clip = sclip_list[current].subclip(start_time, current_time)
+                        moved_clip = temp_clip.set_position((move_x, move_y))
+                        composite_clip = CompositeVideoClip([moved_clip])
+                        # composite_clip = CompositeVideoClip([temp_clip, moved_clip])
+                        tclip_list.append(composite_clip)
+                        # moved_clip = sclip_list[current].subclip(start_time, current_time).set_position(move_x, move_y)
+                        # composite_clip = CompositeVideoClip([video_clip, moved_clip])
+                        # composite_clip = CompositeVideoClip([moved_clip])
+                        # tclip_list.append(CompositeVideoClip([moved_clip]))
                 else:
                     pre_end = sclip_list[current].subclip(current_time - dissolve, current_time)
                     post_start = sclip_list[max_i].subclip(current_time - dissolve, current_time)
@@ -174,6 +185,14 @@ for t in range(t_size):
                 start_time = current_time
                 skip_end = random.randint(skip_min * multiply, skip_max * multiply)
                 skip_index = 0
+
+                print(f"current rect: ({cx}, {cy}, {cw}, {ch}) / next rect: ({ix}, {iy}, {iw}, {ih})")
+                print(f"diff w: {cw-iw} / diff w%:{abs(cw-iw)/min(cw,iw)/100:.4f}%")
+                print(f"diff h: {ch-ih} / diff w%:{abs(ch-ih)/min(ch,ih)/100:.4f}%")
+                print(f"move x: {cx-ix} / move y: {cy-iy}")
+                move_x = cx-ix
+                move_y = cy-iy
+
                 switch_count += 1
             else:
                 print(f"Face mismatch / max iou: {max_iou:.2f} / simularity: {distance:.2f} at {current_time}")
@@ -195,9 +214,9 @@ print(f"face_mismatch_count: {face_mismatch_count}")
 print(f"face_dectection_fail_count: {face_dectection_fail_count}")
 print(f"insufficient_iou_count: {insufficient_iou_count}")
 
-# print(len(tclip_list))
-# for i, clip in enumerate(tclip_list):
-#     print(f"Clip {i} duration: {clip.duration}")
+print(len(tclip_list))
+for i, clip in enumerate(tclip_list):
+    print(f"Clip {i} duration: {clip.duration}")
 
 concatenated_clip = concatenate_videoclips(tclip_list)
 if total_duration == int(sclip_list[0].duration):
