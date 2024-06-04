@@ -44,7 +44,7 @@ def calculate_similarity(row1, row2):
     # Return average distance as similarity measure
     return distance / count if count > 0 else float('inf')
 
-def compare_csvs(file1, file2):
+def compare_csvs(file1, file2, threshold):
     data1 = read_csv(file1)
     data2 = read_csv(file2)
 
@@ -84,13 +84,52 @@ def visualize_comparisons(video1, video2, similar_frames):
 
     cv2.destroyAllWindows()
 
+def switch_videos_and_save(video1_path, video2_path, switch_frame1, switch_frame2, output_path):
+    cap1 = cv2.VideoCapture(video1_path)
+    cap2 = cv2.VideoCapture(video2_path)
+
+    frame_width = int(cap1.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap1.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = int(cap1.get(cv2.CAP_PROP_FPS))
+
+    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
+
+    frame_number = 0
+    while cap1.isOpened() and frame_number < switch_frame1:
+        success, frame = cap1.read()
+        if not success:
+            break
+        out.write(frame)
+        frame_number += 1
+
+    frame_number = 0
+    cap2.set(cv2.CAP_PROP_POS_FRAMES, switch_frame2)
+    while cap2.isOpened():
+        success, frame = cap2.read()
+        if not success:
+            break
+        out.write(frame)
+        frame_number += 1
+
+    cap1.release()
+    cap2.release()
+    out.release()
+
+def find_switch_point(similar_frames, min_frames=5):
+    if not similar_frames:
+        return None, None
+    for i in range(len(similar_frames) - min_frames + 1):
+        if all(similar_frames[j][0] == similar_frames[i][0] + j for j in range(min_frames)):
+            return similar_frames[i][0], similar_frames[i][1]
+    return None, None
+
 # Define the similarity threshold
-threshold = 10  # Adjust this value based on your requirements
+threshold = 30  # Adjust this value based on your requirements
 
 # Compare the two CSV files
 file1 = 'test1.csv'
 file2 = 'test2.csv'
-similar_frames = compare_csvs(file1, file2)
+similar_frames = compare_csvs(file1, file2, threshold)
 
 # Define the video paths
 video1 = "pose_sync_ive_baddie_1.mp4"
@@ -99,3 +138,11 @@ video2 = "pose_sync_ive_baddie_2.mp4"
 # Visualize the comparisons
 visualize_comparisons(video1, video2, similar_frames)
 
+# Find the switch point
+switch_frame1, switch_frame2 = find_switch_point(similar_frames, min_frames=5)
+if switch_frame1 is not None and switch_frame2 is not None:
+    print(f'Switching at frame {switch_frame1} in video1 and frame {switch_frame2} in video2')
+    output_path = 'output_video.mp4'
+    switch_videos_and_save(video1, video2, switch_frame1, switch_frame2, output_path)
+else:
+    print('No suitable switch point found.')
