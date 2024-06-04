@@ -35,7 +35,6 @@ t_start = int(init_time * multiply)
 t_size = int(total_duration * multiply)
 print(f"fraction:{fraction}, multiply:{multiply}, t_size:{t_size}")
 
-# chore
 # skip_min = 2
 # skip_max = 5
 # skip_end = skip_max * 2 * multiply

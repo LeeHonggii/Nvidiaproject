@@ -1,5 +1,5 @@
-import cv2
 import numpy as np
+import cv2
 from moviepy.editor import VideoFileClip, concatenate_videoclips, CompositeVideoClip
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -17,13 +17,22 @@ tclip_list = []
 current = 0
 start_time = 0
 
-t_size = 10
-# t_size = int(sclip_list[0].duration)
+# t_size = 30
+total_duration = int(sclip_list[0].duration)
+fraction = 0.25
+multiply = int(1 / fraction)
+t_size = total_duration * multiply
+print(fraction, multiply, t_size)
+iou_threshold = 0.5
+skip_time = 2
+skip_max = skip_time * multiply
+skip_index = skip_max
 
 maxx = max
 
 def detect_faces(i, t):
-    frame = sclip_list[i].get_frame(t)
+    current_time = t / multiply
+    frame = sclip_list[i].get_frame(current_time)
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # moviepy는 RGB, OpenCV는 BGR
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -34,7 +43,7 @@ def detect_faces(i, t):
 # for t in range(int(sclip_list[0].duration)):
 for t in range(t_size):
     for i in range (len(sclip_list)):
-        print(t, i)
+        print(t/multiply, i)
         detect_faces(i, t)
 
 # for t in range(t_size):
@@ -82,13 +91,18 @@ def intersection_over_union(rect1, rect2):
 
 # for t in range(int(sclip_list[0].duration)):
 for t in range(t_size):
+    if skip_index < skip_max:
+        skip_index += 1
+        continue
+    # current_time = t // multiply + fraction * (t % multiply)
+    current_time = t / multiply
     current_rect = find_best_rect(current, t)
     max_i = current
     max_iou = 0
     for i in range(len(sclip_list)):
         if i != current:
             i_rect = find_best_rect(i, t)
-            # print(i, t, i_rect)
+            print(i, t, i_rect)
             if i_rect == (0,0,0,0):
                 print(None)
             else:
@@ -98,18 +112,19 @@ for t in range(t_size):
                     max_i = i
                     max_iou = i_iou
 
-    if max_iou > 0.3:
-        print("!!!max iou:", max_i, max_iou, "cross to", max_i)
-        tclip_list.append(sclip_list[current].subclip(start_time, t))
+    if max_iou > iou_threshold:
+        print("!!!max iou:", max_i, max_iou, "switch to", max_i)
+        tclip_list.append(sclip_list[current].subclip(start_time, current_time))
         current = max_i
-        start_time = t
+        start_time = current_time
+        skip_index = 0
     else:
-        print("max iou:", max_i, max_iou, "skip", t)
+        rint(f"Insufficient iou: {max_iou} at {current_time}")
 
 concatenated_clip = concatenate_videoclips(tclip_list)
 
 # 이어붙인 동영상을 파일로 저장
-output_path = 'data/opencv_video.mp4'
+output_path = f'data/opencv_video_{multiply:.2f}_{iou_threshold:.1f}.mp4'
 concatenated_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
 
 # 메모리에서 동영상 클립 제거 (선택 사항)
