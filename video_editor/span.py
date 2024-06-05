@@ -53,35 +53,62 @@
 # moved_clip_bottom_right.close()
 # moved_clip_percentage.close()
 
-from moviepy.editor import VideoFileClip, CompositeVideoClip, concatenate_videoclips
+# from moviepy.editor import VideoFileClip, CompositeVideoClip, concatenate_videoclips
+#
+# video_clip = VideoFileClip('data/video.mp4')
+#
+# screen_width, screen_height = video_clip.size
+# print(screen_width, screen_height)
+#
+# moved_clip = video_clip.set_position((-int(screen_width*0.1), 10))
+#
+# # composite_clip = CompositeVideoClip([moved_clip], size=(screen_width, screen_height))
+# # composite_clip = CompositeVideoClip([video_clip, moved_clip])
+# composite_clip = CompositeVideoClip([moved_clip])
+# # composite_clip = concatenate_videoclips([video_clip, composite_clip])
+# # composite_clip = concatenate_videoclips([moved_clip])
+# final_clip = []
+# final_clip.append(video_clip)
+# final_clip.append(composite_clip)
+# final_clip = concatenate_videoclips(final_clip)
+#
+# screen_width, screen_height = composite_clip.size
+# print(screen_width, screen_height)
+#
+# # 이동된 클립을 파일로 저장
+# output_path = 'data/moved_video.mp4'
+# # composite_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
+# final_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
+#
+#
+# # 메모리에서 동영상 클립 제거
+# video_clip.close()
+# moved_clip.close()
+# composite_clip.close()
 
-video_clip = VideoFileClip('data/video.mp4')
+# from moviepy.editor import VideoFileClip, CompositeVideoClip
+#
+# clip = VideoFileClip("data/video.mp4")
+#
+# # scaled_clip = clip.resize(0.5)
+# moved_clip = clip.set_position((30, 50))
+#
+# final_clip = CompositeVideoClip([moved_clip])
+#
+# final_clip.write_videofile("data/moved_video.mp4", codec='libx264')
+#
 
-screen_width, screen_height = video_clip.size
-print(screen_width, screen_height)
+from moviepy.editor import VideoFileClip, CompositeVideoClip
 
-moved_clip = video_clip.set_position((-int(screen_width*0.1), 10))
+clip = VideoFileClip("data/video.mp4")
 
-# composite_clip = CompositeVideoClip([moved_clip], size=(screen_width, screen_height))
-# composite_clip = CompositeVideoClip([video_clip, moved_clip])
-composite_clip = CompositeVideoClip([moved_clip])
-# composite_clip = concatenate_videoclips([video_clip, composite_clip])
-# composite_clip = concatenate_videoclips([moved_clip])
-final_clip = []
-final_clip.append(video_clip)
-final_clip.append(composite_clip)
-final_clip = concatenate_videoclips(final_clip)
+scaled_clip = clip.resize(0.5)
 
-screen_width, screen_height = composite_clip.size
-print(screen_width, screen_height)
+def move_position(t):
+    return (20 * t if t <= 20 else 20, 'center')
 
-# 이동된 클립을 파일로 저장
-output_path = 'data/moved_video.mp4'
-# composite_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
-final_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
+moving_clip = scaled_clip.set_position(move_position)
 
+final_clip = CompositeVideoClip([moving_clip], size=(1280, 720))
 
-# 메모리에서 동영상 클립 제거
-video_clip.close()
-moved_clip.close()
-composite_clip.close()
+final_clip.write_videofile("data/moving_video.mp4", codec='libx264')

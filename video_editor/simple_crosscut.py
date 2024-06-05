@@ -18,21 +18,22 @@ sclip_list = [VideoFileClip("data/sync_ive_baddie_1.mp4"),
              VideoFileClip("data/sync_ive_baddie_4.mp4"),
              VideoFileClip("data/sync_ive_baddie_5.mp4"),
              VideoFileClip("data/sync_ive_baddie_6.mp4")]
-random.shuffle(sclip_list)
+# random.shuffle(sclip_list)
 
 sclip_rect = [[], [], [], [], [], []]
 tclip_list = []
 current = 0
 
-iou_threshold = 0.5
+iou_threshold = 0.3
 simularity_threshold = 0.6
 dissolve = 0.0
 
-init_time = 0
-total_duration = int(sclip_list[0].duration)
-fraction = 0.1
-# total_duration = 30
+# init_time = 0
+# total_duration = int(sclip_list[0].duration)
 # fraction = 0.1
+init_time = 20
+total_duration = 10
+fraction = 0.1
 multiply = int(1 / fraction)
 t_start = int(init_time * multiply)
 t_size = int(total_duration * multiply)
@@ -42,7 +43,7 @@ print(f"fraction:{fraction}, multiply:{multiply}, t_size:{t_size}")
 # skip_max = 3
 # skip_end = skip_max * 2 * multiply
 # skip_index = 0
-skip_min = 2
+skip_min = 0
 skip_max = skip_min
 skip_end = skip_min
 skip_index = skip_end
@@ -192,6 +193,8 @@ for t in range(t_size):
                 print(f"move x: {cx-ix} / move y: {cy-iy}")
                 move_x = cx-ix
                 move_y = cy-iy
+                # move_x = cx-ix - move_x
+                # move_y = cy-iy - move_y
 
                 switch_count += 1
             else:
