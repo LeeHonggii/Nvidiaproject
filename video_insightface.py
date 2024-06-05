@@ -58,10 +58,14 @@ def process_video(video_path, output_path):
 
             for face in faces:
                 bbox = face["bbox"].astype(int)
-                cv2.rectangle(
-                    frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2
-                )
-                face_positions.append((bbox[0], bbox[1], bbox[2], bbox[3]))
+                # cv2.rectangle(
+                #     frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2
+                # )
+                # face_positions.append((bbox[0], bbox[1], bbox[2], bbox[3]))
+                x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                face_positions.append((x, y, w, h))
+                
 
                 # Print bounding box and any other face details
                 print(f"Frame {frame_count}: Face detected with bbox={bbox}")
@@ -74,7 +78,7 @@ def process_video(video_path, output_path):
                             frame, tuple(point), 3, (200, 160, 75), 1, cv2.LINE_AA
                         )
                     # Print landmarks
-                    print(f"Landmarks for the face: {lmk}")
+                    # print(f"Landmarks for the face: {lmk}")
 
                 if "normed_embedding" in face:
                     embedding = face["normed_embedding"]
@@ -121,13 +125,13 @@ def process_video(video_path, output_path):
     print(f"Video processing complete. Output saved to {output_path}")
     print(f"Total processing time: {total_time:.2f} seconds")
 
-    return face_positions, face_recognitions
+    return face_positions # , face_recognitions
 
 
 if __name__ == "__main__":
     video_path = "./video/ive_baddie_1.mp4"
     output_path = "./video/output_ive_baddie_1.mp4"
     face_positions, face_recognitions = process_video(video_path, output_path)
-    print("Video processing complete. Output saved to", output_path)
-    print("Face positions:", face_positions)
-    print("Face recognitions:", face_recognitions)
+    # print("Video processing complete. Output saved to", output_path)
+    # print("Face positions:", face_positions)
+    # print("Face recognitions:", face_recognitions)
