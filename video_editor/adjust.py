@@ -115,19 +115,48 @@ print(f"Signed angle between vectors: {angle} degrees")
 # angle = calculate_angle(v1, v2)
 # print(f"Angle between vectors: {angle} degrees")
 
-clip = clip2
-clip = clip.rotate(angle)
-# clip = clip2.resize(ratio)
-# clip = clip.set_position((move_x, move_y))
-angle_radians = math.radians(angle)
-# move_x = height * math.cos(angle_radians)
-move_y = width * math.sin(angle_radians)
-move_x = 0
-print(move_x, move_y)
-clip = clip.set_position((-move_x, -move_y))
+clip = clip2.rotate(angle)
+# clip = clip.resize(1.5)
+# clip = clip.on_color(size=(1920, 1080), color=(0, 0, 0), pos=('center', 'center'))
+clip = clip.on_color(size=(1280, 720), color=(0, 0, 0), pos=(-25, -370))
+# clip = clip.set_position((25, -350))
+# clip = CompositeVideoClip([clip])
 
-composed_clip = CompositeVideoClip([clip])
+
+rotated_clip = clip.resize(newsize=(1280, 720))
+
+length = lambda w, h: (w**2 + h**2)**(1/2)
+
+distance = length(x2 - x1, y2 - y1)
+length_1 = length(w1, h1)
+length_2 = length(w2, h2)
+ratio = length_1 / length_2
+print(distance, length_1, length_2, ratio)
+
+new_x = x2 * ratio
+new_y = y2 * ratio
+move_x = x2 - new_x
+move_y = y2 - new_y
+print(new_x, new_y, move_x, move_y)
+
+resize_clip = rotated_clip.resize(ratio)
+moved_clip = resize_clip.set_position((move_x, move_y))
+composed_clip = CompositeVideoClip([moved_clip])
 adjust_clip = composed_clip.crop(x1=0, y1=0, x2=width, y2=height)
+
+# clip = clip2
+# clip = clip.rotate(angle)
+# # clip = clip2.resize(ratio)
+# # clip = clip.set_position((move_x, move_y))
+# angle_radians = math.radians(angle)
+# # move_x = height * math.cos(angle_radians)
+# move_y = width * math.sin(angle_radians)
+# move_x = 0
+# print(move_x, move_y)
+# clip = clip.set_position((-move_x, -move_y))
+#
+# composed_clip = CompositeVideoClip([clip])
+# adjust_clip = composed_clip.crop(x1=0, y1=0, x2=width, y2=height)
 # resize_clip = clip2.resize(ratio)
 # moved_clip = resize_clip.set_position((move_x, move_y))
 # rotated_clip = moved_clip.rotate(angle)

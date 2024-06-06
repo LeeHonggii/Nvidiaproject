@@ -26,7 +26,6 @@ def make_frame(t):
     cv2.line(frame, start_point, end_point, line_color, 3)  # Increase line thickness to 3
     return frame
 
-
 clip1 = CompositeVideoClip([clip.subclip(0, duration/2).set_make_frame(make_frame)])
 clip1.write_videofile("data/line1.mp4", codec='libx264', audio_codec='aac')
 
