@@ -6,44 +6,66 @@ clip = VideoFileClip("data/short_video.mp4")
 duration = clip.duration
 
 current = [0]
+line_list = []
+
 
 def make_frame(t):
     # global current
     # print(current[0])
     if current[0] == 0:
         line_color = (0, 255, 0)  # Green color
-        start_point = (100, 100)
-        end_point = (300, 200)
+        # start_point = (100, 100)
+        # end_point = (220, 100)
+        x1, y1, x2, y2 = line_list[0]
+        # start_point = (x1, y1)
+        # end_point = (x2, y2)
     else:
         line_color = (0, 255, 0)  # Green color
         # line_color = (255, 0, 0)
         # start_point = (130, 150)
         # end_point = (230, 150)
-        start_point = (150, 100)
-        end_point = (250, 200)
+        x1, y1, x2, y2 = line_list[1]
+        # start_point = (x1, y1)
+        # end_point = (x2, y2)
+    start_point = (x1, y1)
+    end_point = (x2, y2)
     frame = clip.get_frame(t)  # Get the current frame from the video clip
     frame = np.array(frame)  # Convert frame to numpy array
     cv2.line(frame, start_point, end_point, line_color, 3)  # Increase line thickness to 3
     return frame
 
-clip1 = CompositeVideoClip([clip.subclip(0, duration/2).set_make_frame(make_frame)])
-clip1.write_videofile("data/line1.mp4", codec='libx264', audio_codec='aac')
 
-current[0] = 1
+def prepare_sample(line1, line2):
+    line_list.append(line1)
+    line_list.append(line2)
 
-clip2 = CompositeVideoClip([clip.subclip(duration/2, duration).set_make_frame(make_frame)])
-clip2.write_videofile("data/line2.mp4", codec='libx264', audio_codec='aac')
+    current[0] = 0
 
-clip1.close()
-clip1 = VideoFileClip("data/line1.mp4")
+    clip1 = CompositeVideoClip([clip.subclip(0, duration/2).set_make_frame(make_frame)])
+    clip1.write_videofile("data/line1.mp4", codec='libx264', audio_codec='aac')
 
-final_clip = concatenate_videoclips([clip1, clip2])
+    current[0] = 1
 
-final_clip.write_videofile("data/line0.mp4", codec='libx264', audio_codec='aac')
+    clip2 = CompositeVideoClip([clip.subclip(duration/2, duration).set_make_frame(make_frame)])
+    clip2.write_videofile("data/line2.mp4", codec='libx264', audio_codec='aac')
 
-clip1.close()
-clip2.close()
-final_clip.close()
+    clip1.close()
+    clip1 = VideoFileClip("data/line1.mp4")
+
+    final_clip = concatenate_videoclips([clip1, clip2])
+
+    final_clip.write_videofile("data/line0.mp4", codec='libx264', audio_codec='aac')
+
+    clip1.close()
+    clip2.close()
+    final_clip.close()
+
+
+if __name__ == "__main__":
+    line1 = (100, 100, 220, 100)
+    line2 = (120, 120, 200, 140)
+    prepare_sample(line1, line2)
+
 #
 # # from moviepy.editor import VideoFileClip, CompositeVideoClip
 # # import numpy as np
