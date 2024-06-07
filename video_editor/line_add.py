@@ -19,8 +19,8 @@ def make_frame(t):
         # line_color = (255, 0, 0)
         # start_point = (130, 150)
         # end_point = (230, 150)
-        start_point = (100, 100)
-        end_point = (200, 200)
+        start_point = (150, 100)
+        end_point = (250, 200)
     frame = clip.get_frame(t)  # Get the current frame from the video clip
     frame = np.array(frame)  # Convert frame to numpy array
     cv2.line(frame, start_point, end_point, line_color, 3)  # Increase line thickness to 3
