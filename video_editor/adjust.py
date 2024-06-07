@@ -9,6 +9,7 @@
 #
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips, CompositeVideoClip
+import math_lib as ml
 import math
 maxx = max
 length = lambda w, h: (w**2 + h**2)**(1/2)
@@ -18,6 +19,8 @@ clip1 = VideoFileClip("data/line1.mp4") # (100, 100) to (300, 100)
 clip2 = VideoFileClip("data/line2.mp4") # (100, 100) to (200, 100)
 
 width, height = clip1.size
+center_x = width / 2
+center_y = height / 2
 
 def case_1():
     x1, y1, w1, h1 = 100, 100, 200, 0
@@ -40,6 +43,7 @@ def case_1():
     composed_clip = CompositeVideoClip([moved_clip])
     adjust_clip = composed_clip.crop(x1=0, y1=0, x2=width, y2=height)
 
+
 x1, y1, x12, y12 = 100, 100, 300, 200
 x2, y2, x22, y22 = 100, 100, 200, 200
 
@@ -60,89 +64,60 @@ move_y = int(y2 - new_y)
 print(new_x, new_y, move_x, move_y)
 
 
-
-# 내적 계산 함수
-dot_product = lambda v1, v2: v1[0] * v2[0] + v1[1] * v2[1]
-cross_product = lambda v1, v2: v1[0] * v2[1] - v1[1] * v2[0]
-
-# 벡터 크기 계산 함수
-length = lambda v: (v[0]**2 + v[1]**2)**(1/2)
-
-# 각도 계산 함수
-# def calculate_angle(v1, v2):
-#     dot_prod = dot_product(v1, v2)
-#     length_v1 = length(v1)
-#     length_v2 = length(v2)
-#     # 코사인 값 계산
-#     cos_theta = dot_prod / (length_v1 * length_v2)
-#     # 각도 계산 (라디안 단위)
-#     angle_radians = math.acos(cos_theta)
-#     # 라디안을 도로 변환
-#     angle_degrees = math.degrees(angle_radians)
-#     return angle_degrees
-def calculate_signed_angle(v1, v2):
-    dot_prod = dot_product(v1, v2)
-    length_v1 = length(v1)
-    length_v2 = length(v2)
-    # 코사인 값 계산
-    cos_theta = dot_prod / (length_v1 * length_v2)
-    # 각도 계산 (라디안 단위)
-    angle_radians = math.acos(cos_theta)
-    # 라디안을 도로 변환
-    angle_degrees = math.degrees(angle_radians)
-    # 외적을 이용하여 부호 결정
-    cross_prod = cross_product(v1, v2)
-    if cross_prod < 0:
-        angle_degrees = -angle_degrees
-    return angle_degrees
-
-# 예시 벡터
-# v1 = (3, 4)  # (x2 - x1, y2 - y1)
-# v2 = (4, 3)  # (w2 - w1, h2 - h1)
-# 예시 벡터
-# v1 = (3, 4)  # (x2 - x1, y2 - y1)
-# v2 = (6, 8)  # (w2 - w1, h2 - h1)
 v1 = (w1, h1)  # (x2 - x1, y2 - y1)
 v2 = (w2, h2)  # (w2 - w1, h2 - h1)
-# v2 = (w1, h1)  # (x2 - x1, y2 - y1)
-# v1 = (w2, h2)  # (w2 - w1, h2 - h1)
+
+
 
 # 각도 계산
-angle = calculate_signed_angle(v1, v2)
-print(f"Signed angle between vectors: {angle} degrees")
+rotate_angle = ml.calculate_signed_angle(v1, v2)
+distance_from_center = length(x1-center_x, y1-center_y)
+opposite_side = distance_from_center * math.sin(math.radians(((abs(rotate_angle) / 2))))
+near_side = distance_from_center * math.cos(math.radians(((abs(rotate_angle) / 2))))
+# print(f"abs(rotate_angle) / 2: {abs(rotate_angle) / 2:.2f}")
+# print(f"math.cos((abs(rotate_angle) / 2): {math.cos((abs(rotate_angle) / 2)):.2f}")
+solution = ml.find_intersection(x1, y1, opposite_side, center_x, center_y, near_side)
 
-# 각도 계산
-# angle = calculate_angle(v1, v2)
-# print(f"Angle between vectors: {angle} degrees")
+xxx, yyy = solution[0]
+print(solution[0])
+moved_x = (xxx - x1) *2
+moved_y = (yyy - y1) *2
+print(xxx, yyy, move_x, move_y)
 
-clip = clip2.rotate(angle)
+# move_x = (solution[0][0] - x1) * 2
+# move_y = (solution[0][1] - y1) * 2
+
+print(f"Signed angle between vectors: {rotate_angle} degrees")
+print(f"distance_from_center: {distance_from_center:.2f} opposite_side: {opposite_side:.2f}, near_side: {near_side:.2f}")
+print(solution)
+print(f"move_x: {moved_x:.2f}, move_y: {moved_y:.2f}")
+
+clip = clip2.rotate(rotate_angle)
+ww1, hh1 = clip.size
+print(ww1,hh1)
+ad_x = int(abs(ww1-width)/2)
+ad_y = int(abs(hh1-height)/2)
+total_x = moved_x + ad_x
+total_y = moved_y + ad_y
+print(f"move_x: {moved_x:.2f} ad_x: {ad_x:.2f} total: {total_x: .2f}")
+print(f"move_y: {moved_y:.2f} ad_x: {ad_y:.2f} total: {total_y: .2f}")
+
 # clip = clip.resize(1.5)
 # clip = clip.on_color(size=(1920, 1080), color=(0, 0, 0), pos=('center', 'center'))
-clip = clip.on_color(size=(1280, 720), color=(0, 0, 0), pos=(-25, -370))
-# clip = clip.set_position((25, -350))
+# clip = clip.on_color(size=(1280, 720), color=(0, 0, 0), pos=('center', 'center'))
+# clip = clip.on_color(size=(1280, 720), color=(0, 0, 0), pos=(-25, -370))
+# clip = clip.on_color(size=(1280, 720), color=(0, 0, 0), pos=(0, 0))
+clip = clip.on_color(size=(1280, 720), color=(0, 0, 0), pos=(-total_x, -total_y))
+
+# clip = clip.on_color(size=(1280, 720), color=(0, 0, 0), pos=(-move_x, -move_y))
+# clip = clip.set_position((-move_x, -move_y))
 # clip = CompositeVideoClip([clip])
+adjust_clip = clip.resize(newsize=(1280, 720))
 
-
-rotated_clip = clip.resize(newsize=(1280, 720))
-
-length = lambda w, h: (w**2 + h**2)**(1/2)
-
-distance = length(x2 - x1, y2 - y1)
-length_1 = length(w1, h1)
-length_2 = length(w2, h2)
-ratio = length_1 / length_2
-print(distance, length_1, length_2, ratio)
-
-new_x = x2 * ratio
-new_y = y2 * ratio
-move_x = x2 - new_x
-move_y = y2 - new_y
-print(new_x, new_y, move_x, move_y)
-
-resize_clip = rotated_clip.resize(ratio)
-moved_clip = resize_clip.set_position((move_x, move_y))
-composed_clip = CompositeVideoClip([moved_clip])
-adjust_clip = composed_clip.crop(x1=0, y1=0, x2=width, y2=height)
+# resize_clip = rotated_clip.resize(ratio)
+# moved_clip = resize_clip.set_position((move_x, move_y))
+# composed_clip = CompositeVideoClip([moved_clip])
+# adjust_clip = composed_clip.crop(x1=0, y1=0, x2=width, y2=height)
 
 # clip = clip2
 # clip = clip.rotate(angle)
