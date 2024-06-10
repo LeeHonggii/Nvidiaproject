@@ -50,21 +50,16 @@ def process_video(video_path):
             break
 
         frame_count += 1
+        current_frame_eye_data = []
 
         if frame_count % 5 == 0:
             faces = app.get(frame)
-            current_embeddings = []
             current_frame_positions = []
             for face in faces:
                 bbox = face["bbox"].astype(int)
                 x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                current_frame_positions.append(
-                    (x, y, w, h)
-                )  # Append this face's bounding box as a tuple to the current frame list.
-
-                # Print bounding box and any other face details
-                print(f"Frame {frame_count}: Face detected with bbox={bbox}")
+                current_frame_positions.append((x, y, w, h))
 
                 if "landmark_2d_106" in face:
                     lmk = face["landmark_2d_106"]
@@ -73,32 +68,31 @@ def process_video(video_path):
                         cv2.circle(
                             frame, tuple(point), 3, (200, 160, 75), 1, cv2.LINE_AA
                         )
-                    # Print landmarks
-                    # print(f"Landmarks for the face: {lmk}")
-                    eye_endpoint.append((lmk[35], lmk[93]))
+                    current_frame_eye_data.append((lmk[35], lmk[93]))
 
-                if "normed_embedding" in face:
-                    embedding = face["normed_embedding"]
-                    current_embeddings.append(embedding)
-                    face_recognitions.append(embedding)
-                    # Print embedding vector
-                    print(f"Embedding vector for detected face: {embedding}")
+                # if "normed_embedding" in face:
+                #     embedding = face["normed_embedding"]
+                #     current_embeddings.append(embedding)
+                #     face_recognitions.append(embedding)
+                #     # Print embedding vector
+                #     print(f"Embedding vector for detected face: {embedding}")
 
-                    # Compare with previous embeddings
-                    if previous_embeddings:
-                        similarity_scores = np.dot(
-                            embedding, np.array(previous_embeddings).T
-                        )
-                        max_similarity = np.max(similarity_scores)
-                        if (
-                            max_similarity > 0.6
-                        ):  # Assuming 0.6 as the threshold for same person
-                            print(
-                                f"Frame {frame_count}: Detected same person with similarity {max_similarity:.2f}."
-                            )
+                #     # Compare with previous embeddings
+                #     if previous_embeddings:
+                #         similarity_scores = np.dot(
+                #             embedding, np.array(previous_embeddings).T
+                #         )
+                #         max_similarity = np.max(similarity_scores)
+                #         if (
+                #             max_similarity > 0.6
+                #         ):  # Assuming 0.6 as the threshold for same person
+                #             print(
+                #                 f"Frame {frame_count}: Detected same person with similarity {max_similarity:.2f}."
+                #             )
 
             face_positions.append(current_frame_positions)
-            previous_embeddings = current_embeddings  # Update the previous embeddings
+            eye_endpoint.append(current_frame_eye_data)
+            # previous_embeddings = current_embeddings  # Update the previous embeddings
 
             if display_scale_factor != 1:
                 display_frame = cv2.resize(
@@ -147,13 +141,44 @@ def intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2):
     return iou
 
 
+def calculate_eye_distance(eye1, eye2):
+    """Calculate the Euclidean distance between two eye points."""
+    return np.linalg.norm(np.array(eye1) - np.array(eye2))
+
+
+def calculate_eye_angle(eye1, eye2):
+    """Calculate the angle of the line connecting the eyes with respect to the horizontal."""
+    eye1 = np.array(eye1)
+    eye2 = np.array(eye2)
+    dy = eye2[1] - eye1[1]
+    dx = eye2[0] - eye1[0]
+    angle = np.degrees(np.arctan2(dy, dx))
+    return angle
+
+
+def feature_vector_from_eyes(eye1, eye2):
+    """Generate a feature vector from eye positions, including distance and angle."""
+    distance = calculate_eye_distance(eye1, eye2)
+    angle = calculate_eye_angle(eye1, eye2)
+    return np.array([distance, angle])
+
+
 def calculate_cosine_similarity(v1, v2):
-    # 코사인 유사도 계산
+    """Calculate the cosine similarity between two vectors."""
+    v1 = np.asarray(v1).flatten()
+    v2 = np.asarray(v2).flatten()
+
+    if np.all(v1 == 0) or np.all(v2 == 0):
+        return 0.0  # Avoid division by zero
+
     dot_product = np.dot(v1, v2)
     norm_v1 = np.linalg.norm(v1)
     norm_v2 = np.linalg.norm(v2)
-    cosine_similarity = dot_product / (norm_v1 * norm_v2)
-    return cosine_similarity
+
+    if norm_v1 == 0 or norm_v2 == 0:
+        return 0.0  # Avoid division by zero if norm is zero
+
+    return dot_product / (norm_v1 * norm_v2)
 
 
 def find_matching_faces(
@@ -161,30 +186,33 @@ def find_matching_faces(
 ):
     matched_faces = []
     min_length = min(len(face_positions1), len(face_positions2))
+
     for frame_index in range(min_length):
         frame_faces1 = face_positions1[frame_index]
         frame_faces2 = face_positions2[frame_index]
-        min_faces_length = min(len(frame_faces1), len(frame_faces2))
-        for i in range(min_faces_length):
-            x1, y1, w1, h1 = frame_faces1[i]
-            x2, y2, w2, h2 = frame_faces2[i]
 
-            iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
+        for i in range(len(frame_faces1)):
+            if i >= len(eye_endpoints1[frame_index]):  # Check if the index is valid
+                continue
 
-            if iou_score > 0.7:  # IOU threshold
-                vector_1 = np.array(eye_endpoints1[frame_index][i][1]) - np.array(
-                    eye_endpoints1[frame_index][i][0]
-                )
-                vector_2 = np.array(eye_endpoints2[frame_index][i][1]) - np.array(
-                    eye_endpoints2[frame_index][i][0]
-                )
-                cosine_sim = calculate_cosine_similarity(vector_1, vector_2)
+            for j in range(len(frame_faces2)):
+                if j >= len(eye_endpoints2[frame_index]):  # Check if the index is valid
+                    continue
 
-                if cosine_sim > 0.7:  # Cosine similarity threshold
-                    matched_faces.append((frame_index, i, i))
-                    print(
-                        f"Matched Face at Frame {frame_index}: Index {i} with IOU {iou_score:.2f} and Cosine {cosine_sim:.2f}"
-                    )
+                x1, y1, w1, h1 = frame_faces1[i]
+                x2, y2, w2, h2 = frame_faces2[j]
+                iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
+
+                if iou_score > 0.7:
+                    vector_1 = feature_vector_from_eyes(*eye_endpoints1[frame_index][i])
+                    vector_2 = feature_vector_from_eyes(*eye_endpoints2[frame_index][j])
+                    cosine_sim = calculate_cosine_similarity(vector_1, vector_2)
+
+                    if cosine_sim > 0.7:
+                        matched_faces.append(((frame_index + 1) * 5))
+                        print(
+                            f"Matched Face at Frame {(frame_index + 1) * 5}: IOU {iou_score:.2f}, Cosine {cosine_sim:.2f}"
+                        )
 
     return matched_faces
 
@@ -203,5 +231,9 @@ if __name__ == "__main__":
         face_positions1, eye_endpoint1, face_positions2, eye_endpoint2
     )
     print(matched_faces)
+
+    for i in matched_faces:
+        print(i % 30, i // 30)
+
     # print("Face positions:", face_positions)
     # print("Face recognitions:", face_recognitions)
