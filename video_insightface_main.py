@@ -4,6 +4,9 @@ import os
 from insightface.app import FaceAnalysis
 import time
 import json
+from moviepy.editor import VideoFileClip, concatenate_videoclips
+from math import radians, degrees, sin, cos, acos
+from sympy import symbols, Eq, solve
 
 
 def process_video(video_path):
@@ -40,7 +43,6 @@ def process_video(video_path):
     frame_count = 0
     face_positions = []
     face_recognitions = []
-    previous_embeddings = []
     eye_endpoint = []
 
     start_time = time.time()
@@ -71,29 +73,8 @@ def process_video(video_path):
                         )
                     current_frame_eye_data.append((lmk[35], lmk[93]))
 
-                # if "normed_embedding" in face:
-                #     embedding = face["normed_embedding"]
-                #     current_embeddings.append(embedding)
-                #     face_recognitions.append(embedding)
-                #     # Print embedding vector
-                #     print(f"Embedding vector for detected face: {embedding}")
-
-                #     # Compare with previous embeddings
-                #     if previous_embeddings:
-                #         similarity_scores = np.dot(
-                #             embedding, np.array(previous_embeddings).T
-                #         )
-                #         max_similarity = np.max(similarity_scores)
-                #         if (
-                #             max_similarity > 0.6
-                #         ):  # Assuming 0.6 as the threshold for same person
-                #             print(
-                #                 f"Frame {frame_count}: Detected same person with similarity {max_similarity:.2f}."
-                #             )
-
             face_positions.append(current_frame_positions)
             eye_endpoint.append(current_frame_eye_data)
-            # previous_embeddings = current_embeddings  # Update the previous embeddings
 
             if display_scale_factor != 1:
                 display_frame = cv2.resize(
@@ -245,7 +226,8 @@ def create_json_structure(matched_faces, video_paths, folder_path):
             "frame_id": mf,
             "next_stream": (idx + 1) % 6,  # Simple circular increment example
             "vector_pairs": [
-                {"vector1": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
+                # TODO: it should save vectors that shows of face complex
+                {"vector{idx}": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
                 {"vector1": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
                 {"vector1": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
             ],
@@ -312,3 +294,4 @@ if __name__ == "__main__":
     write_json_file(json_structure, output_file)
 
     print(f"JSON file '{output_file}' has been written with the video analysis data.")
+
