@@ -49,16 +49,16 @@ def prepare_sample(line1, line2):
     clip2 = CompositeVideoClip([clip.subclip(duration/2, duration).set_make_frame(make_frame)])
     clip2.write_videofile("data/line2.mp4", codec='libx264', audio_codec='aac')
 
-    clip1.close()
-    clip1 = VideoFileClip("data/line1.mp4")
-
-    final_clip = concatenate_videoclips([clip1, clip2])
-
-    final_clip.write_videofile("data/line0.mp4", codec='libx264', audio_codec='aac')
-
+    # clip1.close()
+    # clip1 = VideoFileClip("data/line1.mp4")
+    #
+    # final_clip = concatenate_videoclips([clip1, clip2])
+    #
+    # final_clip.write_videofile("data/line0.mp4", codec='libx264', audio_codec='aac')
+    #
+    # final_clip.close()
     clip1.close()
     clip2.close()
-    final_clip.close()
 
 
 if __name__ == "__main__":

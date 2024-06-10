@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
     line1 = (100, 100, 220, 100)
     line2 = (120, 120, 200, 140)
-    # prepare_sample(line1, line2)
+    prepare_sample(line1, line2)
 
     adjust_clip = get_adjusted_clip(clip2, line1, line2)
 
