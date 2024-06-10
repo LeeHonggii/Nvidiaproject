@@ -125,13 +125,23 @@ def process_video(video_path, output_path):
     print(f"Video processing complete. Output saved to {output_path}")
     print(f"Total processing time: {total_time:.2f} seconds")
 
-    return face_positions, eye_endpoint
+    return face_positions, eye_endpoint, face_recognitions
+
+
+def IOU():
+    pass
+
+
+def recognition():
+    pass
 
 
 if __name__ == "__main__":
     video_path = "./video/ive_baddie_1.mp4"
     output_path = "./video/output_ive_baddie_1.mp4"
-    face_positions, face_recognitions = process_video(video_path, output_path)
+    face_positions, eye_endpoint, face_recognitions = process_video(
+        video_path, output_path
+    )
     # print("Video processing complete. Output saved to", output_path)
     # print("Face positions:", face_positions)
     # print("Face recognitions:", face_recognitions)
