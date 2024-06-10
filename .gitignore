@@ -13,6 +13,7 @@ haarcascade_frontalcatface_extended.xml
 haarcascade_frontalcatface_default.xml
 shape_predictor_68_face_landmarks.dat
 output
+youjin1.jpg
 
 # video
 video/
