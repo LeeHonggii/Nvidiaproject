@@ -3,6 +3,7 @@ import numpy as np
 import os
 from insightface.app import FaceAnalysis
 import time
+import json
 
 
 def process_video(video_path):
@@ -221,6 +222,62 @@ def recognition():
     pass
 
 
+def create_json_structure(matched_faces, video_paths, folder_path):
+    # Define meta information
+    meta_info = {
+        "num_stream": 6,
+        "frame_rate": 29.97,
+        "num_frames": 4795.2,  # Example value
+        "duration": 160,  # Example value
+        "num_vector_pair": 3,  # Example, adjust based on your actual data
+        "num_cross": len(matched_faces),  # Example, adjust based on your actual data
+        "first_stream": 0,  # Example value
+        "folder_path": folder_path,
+    }
+
+    # Define streams
+    streams = [{"file": vp, "start": 0, "end": 0} for vp in video_paths]
+
+    # Define cross_points
+    cross_points = []
+    for idx, mf in enumerate(matched_faces):
+        cross_point = {
+            "frame_id": mf,
+            "next_stream": (idx + 1) % 6,  # Simple circular increment example
+            "vector_pairs": [
+                {"vector1": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
+                {"vector1": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
+                {"vector1": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
+            ],
+        }
+        cross_points.append(cross_point)
+
+    # Define scene_list for each stream
+    scene_list = [
+        [100, 500, 1000, 1500],
+        [200, 500, 1500, 3000],
+        [100, 510, 1000, 1500],
+        [400, 500, 1000, 1500],
+        [150, 500, 1000, 1500],
+        [800, 500, 1000, 1500],
+    ]
+
+    # Complete parameter dictionary
+    parameter = {
+        "meta_info": meta_info,
+        "streams": streams,
+        "cross_points": cross_points,
+        "scene_list": scene_list,
+    }
+
+    return parameter
+
+
+def write_json_file(parameter, output_file):
+    with open(output_file, "w") as f:
+        json.dump(parameter, f, indent=4)
+
+
 if __name__ == "__main__":
     video_path1 = "./video/pose_sync_ive_baddie_1.mp4"
     video_path2 = "./video/pose_sync_ive_baddie_2.mp4"
@@ -233,7 +290,25 @@ if __name__ == "__main__":
     print(matched_faces)
 
     for i in matched_faces:
-        print(i % 30, i // 30)
+        print(i // 30, i % 30)
 
     # print("Face positions:", face_positions)
     # print("Face recognitions:", face_recognitions)
+    video_paths = [
+        video_path1,
+        video_path2,
+        "filepath2",
+        "filepath3",
+        "filepath4",
+        "filepath5",
+    ]
+    folder_path = "data"  # Folder path for storing videos
+
+    # Create the JSON structure
+    json_structure = create_json_structure(matched_faces, video_paths, folder_path)
+
+    # Write the JSON structure to a file
+    output_file = "output.json"
+    write_json_file(json_structure, output_file)
+
+    print(f"JSON file '{output_file}' has been written with the video analysis data.")
