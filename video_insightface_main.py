@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import os
-import insightface
 from insightface.app import FaceAnalysis
 import time
 
@@ -42,6 +41,7 @@ def process_video(video_path, output_path):
     face_positions = []
     face_recognitions = []
     previous_embeddings = []
+    eye_endpoint = []
 
     start_time = time.time()
 
@@ -65,7 +65,6 @@ def process_video(video_path, output_path):
                 x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 face_positions.append((x, y, w, h))
-                
 
                 # Print bounding box and any other face details
                 print(f"Frame {frame_count}: Face detected with bbox={bbox}")
@@ -79,6 +78,7 @@ def process_video(video_path, output_path):
                         )
                     # Print landmarks
                     # print(f"Landmarks for the face: {lmk}")
+                    eye_endpoint.append((lmk[35], lmk[93]))
 
                 if "normed_embedding" in face:
                     embedding = face["normed_embedding"]
@@ -125,7 +125,7 @@ def process_video(video_path, output_path):
     print(f"Video processing complete. Output saved to {output_path}")
     print(f"Total processing time: {total_time:.2f} seconds")
 
-    return face_positions # , face_recognitions
+    return face_positions, eye_endpoint
 
 
 if __name__ == "__main__":
