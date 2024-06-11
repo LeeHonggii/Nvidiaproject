@@ -77,6 +77,7 @@ def process_video(video_path):
                     if distance_to_center < width * 0.25 and area > max_area:
                         max_area = area
                         current_frame_eye_data.append((lmk[35], lmk[93]))
+                        cv2.line(frame, tuple(lmk[35]), tuple(lmk[93]), (255, 0, 0), 2)
 
             face_positions.append(current_frame_positions)
             eye_endpoint.append(current_frame_eye_data)
@@ -227,10 +228,17 @@ def create_json_structure(
 
     time_conversion = 1 / 29.97
 
+    next_stream = 0
+
     # Define cross_points
     cross_points = []
     for idx, frame_id in enumerate(matched_faces):
+        current_stream = next_stream
+        if current_stream == len(video_paths) and next_stream == len(video_paths):
+            current_stream = 0
+            next_stream = 0
         stream_index = idx % len(video_paths)
+
         if (
             len(eye_endpoints1) > stream_index
             and len(eye_endpoints1[stream_index]) > 0
@@ -254,10 +262,11 @@ def create_json_structure(
             )
             cross_point = {
                 "frame_id": frame_id * time_conversion,
-                "next_stream": random.randrange(len(video_paths)),
+                "next_stream": next_stream,
                 "vector_pairs": [{"vector1": vector_1, "vector2": vector_2}],
             }
             cross_points.append(cross_point)
+            next_stream = next_stream + 1
 
     # Define scene_list for each stream
     scene_list = [
