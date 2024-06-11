@@ -1,0 +1,165 @@
+{
+    "meta_info": {
+        "num_stream": 6,
+        "frame_rate:": 29.97,
+        "num_frames": 0,
+        "init_time": 0,
+        "duration": 10,
+        "num_vector_pair": 3,
+        "num_cross": 4,
+        "first_stream": 0,
+        "file_path": "data/"
+    },
+    "streams": [
+        {
+            "file": "sync_ive_baddie_1.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_2.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_3.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_4.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_5.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_6.mp4",
+            "start": 0,
+            "end": 0
+        }
+    ],
+    "cross_points": [
+        {
+            "frame_id": 0.4,
+            "next_stream": 1,
+            "vector_pairs": [
+                {
+                    "vector1": [
+                        788,
+                        229,
+                        395,
+                        395
+                    ],
+                    "vector2": [
+                        790,
+                        233,
+                        406,
+                        406
+                    ]
+                }
+            ]
+        },
+        {
+            "frame_id": 1.8,
+            "next_stream": 4,
+            "vector_pairs": [
+                {
+                    "vector1": [
+                        819,
+                        224,
+                        262,
+                        262
+                    ],
+                    "vector2": [
+                        863,
+                        151,
+                        268,
+                        268
+                    ]
+                }
+            ]
+        },
+        {
+            "frame_id": 4.8,
+            "next_stream": 2,
+            "vector_pairs": [
+                {
+                    "vector1": [
+                        785,
+                        198,
+                        249,
+                        249
+                    ],
+                    "vector2": [
+                        735,
+                        260,
+                        255,
+                        255
+                    ]
+                }
+            ]
+        },
+        {
+            "frame_id": 6.9,
+            "next_stream": 0,
+            "vector_pairs": [
+                {
+                    "vector1": [
+                        1037,
+                        343,
+                        281,
+                        281
+                    ],
+                    "vector2": [
+                        885,
+                        212,
+                        364,
+                        364
+                    ]
+                }
+            ]
+        }
+    ],
+    "scene_list": [
+        [
+            100,
+            500,
+            1000,
+            1500
+        ],
+        [
+            200,
+            500,
+            1500,
+            3000
+        ],
+        [
+            100,
+            510,
+            1000,
+            1500
+        ],
+        [
+            400,
+            500,
+            1000,
+            1500
+        ],
+        [
+            150,
+            500,
+            1000,
+            1500
+        ],
+        [
+            800,
+            500,
+            1000,
+            1500
+        ]
+    ]
+}
