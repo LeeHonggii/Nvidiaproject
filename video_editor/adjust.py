@@ -36,15 +36,19 @@ def find_intersection(x1, y1, a, x2, y2, b):
 
 
 def get_adjusted_clip(clip, v1, v2):
-    x1, y1, x12, y12 = v1
-    x2, y2, x22, y22 = v2
-
     width, height = clip.size
     center_x = width / 2
     center_y = height / 2
 
-    w1, h1 = x12 - x1, y12 - y1
-    w2, h2 = x22 - x2, y22 - y2
+    x1, y1, w1, h1 = v1
+    x2, y2, w2, h2 = v2
+    x12, y12 = x1 + w1, y1 + h1
+    x22, y22 = x2 + w2, y2 + h2
+    # x1, y1, x12, y12 = v1
+    # x2, y2, x22, y22 = v2
+    # w1, h1 = x12 - x1, y12 - y1
+    # w2, h2 = x22 - x2, y22 - y2
+
     diff_x = x2 - x1
     diff_y = y2 - y1
     distance = dist(diff_x, diff_y)
@@ -102,11 +106,13 @@ if __name__ == "__main__":
     clip1 = VideoFileClip("data/line1.mp4")
     clip2 = VideoFileClip("data/line2.mp4")
 
-    line1 = (100, 100, 220, 100)
-    line2 = (120, 120, 200, 140)
-    prepare_sample(line1, line2)
+    x1, y1, x12, y12 = (100, 100, 220, 100)
+    x2, y2, x22, y22 = (120, 120, 200, 140)
+    v1 = (x1, y1, x12 - x1, y12 - y1)
+    v2 = (x2, y2, x22 - x2, y22 - y2)
+    # prepare_sample(line1, line2)
 
-    adjust_clip = get_adjusted_clip(clip2, line1, line2)
+    adjust_clip = get_adjusted_clip(clip2, v1, v2)
 
     final_clip = concatenate_videoclips([clip1, adjust_clip])
     final_clip.write_videofile("data/adjust_video.mp4", codec='libx264', audio_codec='aac')

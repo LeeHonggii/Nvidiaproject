@@ -1,7 +1,7 @@
 import numpy as np
+from moviepy.editor import VideoFileClip
 import cv2
 import dlib
-from moviepy.editor import VideoFileClip, concatenate_videoclips, CompositeVideoClip
 import json
 import random
 import time
@@ -18,11 +18,12 @@ parameter = {
       "num_stream": 6,
       "frame_rate:": 29.97,
       "num_frames": 0,         # (2 * 60 + 40 + 0 / 60) * 29.97,
-      "duration": 16,          # 2 * 60 + 40 + 0 / 60,
+      "init_time": 0,          # start at somewhere in the middle
+      "duration": 160,          # 2 * 60 + 40 + 0 / 60,
       "num_vector_pair": 3,    # at least 1, maximum 3 recommended
       "num_cross": 15,         # number of crossedit
       "first_stream": 0,       # first stream can be any integer between 0 and 5
-      "file_path": "data/"
+      "folder_path": "data/"
    },
    "streams": [
       {
@@ -68,54 +69,49 @@ parameter = {
    ]
 }
 
+num_stream = parameter["meta_info"]["num_stream"]
 sclip_list = []
 
-for i in range(parameter["meta_info"]["num_stream"]):
-    sclip_list.append(VideoFileClip(parameter["meta_info"]["file_path"] + parameter["streams"][i]["file"]))
-    print(parameter["meta_info"]["file_path"] + parameter["streams"][i]["file"])
+for i in range(num_stream):
+    sclip_list.append(VideoFileClip(parameter["meta_info"]["folder_path"] + parameter["streams"][i]["file"]))
+    print(parameter["meta_info"]["folder_path"] + parameter["streams"][i]["file"])
     if parameter["streams"][i]["start"] != 0 or parameter["streams"][i]["end"] != 0:
         sclip_list[-1].subclip(parameter["streams"][i]["start"], parameter["streams"][i]["end"])
         print("ALERT!!!")
 
-# random.shuffle(sclip_list)
 
-sclip_rect = [[], [], [], [], [], []]
-tclip_list = []
-current = 0
+sclip_rect = [[] for _ in range(num_stream)]        # [[], [], [], [], [], []]
 cross_list = []
+# current_stream = random.randrange(num_stream)
+current_stream = parameter["meta_info"]["first_stream"]    # 0
 
-iou_threshold = 0.3
+iou_threshold = 0.6
 simularity_threshold = 0.6
-dissolve = 0.0
 
-# init_time = 0
-# total_duration = int(sclip_list[0].duration)
-# fraction = 0.1
-init_time = 21
-total_duration = 2
+parameter["meta_info"]["init_time"] = 0
+parameter["meta_info"]["duration"] = 10
+# parameter["meta_info"]["duration"] = int(sclip_list[0].duration)
+init_time = parameter["meta_info"]["init_time"]
+total_duration = parameter["meta_info"]["duration"]
 fraction = 0.1
 multiply = int(1 / fraction)
 t_start = int(init_time * multiply)
 t_size = int(total_duration * multiply)
 print(f"fraction:{fraction}, multiply:{multiply}, t_size:{t_size}")
 
+skip_min = 1    # sec
+skip_max = 1    # sec
+skip_end = int(skip_min * multiply)  # fraction
+skip_index = skip_end                # fraction
 # skip_min = 2
-# skip_max = 3
-# skip_end = skip_max * 2 * multiply
-# skip_index = 0
-skip_min = 0
-skip_max = skip_min
-skip_end = skip_min
-skip_index = skip_end
+# skip_max = skip_min
+# skip_end = skip_min
+# skip_index = skip_end
 
 switch_count = 0
 face_mismatch_count = 0
 face_dectection_fail_count = 0
 insufficient_iou_count = 0
-
-start_time = init_time
-move_x = 0
-move_y = 0
 
 
 def detect_faces(i, t):
@@ -184,12 +180,12 @@ for t in range(t_size):
         continue
     # current_time = t // multiply + fraction * (t % multiply)
     current_time = init_time + t / multiply
-    current_rect = find_best_rect(current, t)
-    max_i = current
+    current_rect = find_best_rect(current_stream, t)
+    max_i = current_stream
     max_iou = 0
     max_rect = (0,0,0,0)
     for i in range(len(sclip_list)):
-        if i != current:
+        if i != current_stream:
             i_rect = find_best_rect(i, t)
             # print(i, t, i_rect)
             if i_rect == (0,0,0,0):
@@ -204,7 +200,7 @@ for t in range(t_size):
                     max_rect = i_rect
 
     if max_iou > iou_threshold:
-        frame = sclip_list[current].get_frame(current_time)
+        frame = sclip_list[current_stream].get_frame(current_time)
         cx, cy, cw, ch = current_rect
         dlib_rect = dlib.rectangle(int(cx), int(cy), int(cx + cw), int(cy + ch))
         landmarks = landmark_predictor(frame, dlib_rect)
@@ -233,21 +229,21 @@ for t in range(t_size):
                 cross_list.append(cross_point)
 
                 # if move_x == 0 and move_y == 0:
-                #     tclip_list.append(sclip_list[current].subclip(start_time, current_time))
+                #     tclip_list.append(sclip_list[current_stream].subclip(start_time, current_time))
                 # else:
                 #     print(f"move x: {move_x} / move y: {move_y}")
-                #     temp_clip = sclip_list[current].subclip(start_time, current_time)
+                #     temp_clip = sclip_list[current_stream].subclip(start_time, current_time)
                 #     moved_clip = temp_clip.set_position((move_x, move_y))
                 #     composite_clip = CompositeVideoClip([moved_clip])
                 #     # composite_clip = CompositeVideoClip([temp_clip, moved_clip])
                 #     tclip_list.append(composite_clip)
-                #     # moved_clip = sclip_list[current].subclip(start_time, current_time).set_position(move_x, move_y)
+                #     # moved_clip = sclip_list[current_stream].subclip(start_time, current_time).set_position(move_x, move_y)
                 #     # composite_clip = CompositeVideoClip([video_clip, moved_clip])
                 #     # composite_clip = CompositeVideoClip([moved_clip])
                 #     # tclip_list.append(CompositeVideoClip([moved_clip]))
 
-                current = max_i
-                # start_time = current_time
+                current_stream = max_i
+                start_time = current_time
                 skip_end = random.randint(skip_min * multiply, skip_max * multiply)
                 skip_index = 0
 
@@ -295,50 +291,3 @@ minutes = int(detect_time // 60)
 seconds = detect_time % 60
 print(f"Detection time: {minutes:d} minutes and {seconds:.2f} seconds")
 
-edit_begin_time = time.time()
-
-with open("data/output.json", "r", encoding="utf-8") as file:
-    json_string_from_file = file.read()
-
-parameter_from_file = json.loads(json_string_from_file)
-print(parameter_from_file)
-print(type(parameter_from_file))
-
-cross_list = parameter_from_file["cross_points"]
-num_cross = parameter_from_file[meta_info]["num_cross"]
-
-for i in range(num_cross):
-    pass
-
-# tclip_list.append(sclip_list[current].subclip(start_time, init_time + total_duration))
-#
-# # print("final clip", start_time, total_duration)
-#
-# print(len(tclip_list))
-# for i, clip in enumerate(tclip_list):
-#     print(f"Clip {i} duration: {clip.duration}")
-#
-# concatenated_clip = concatenate_videoclips(tclip_list)
-# if total_duration == int(sclip_list[0].duration):
-#     final_video = concatenated_clip.set_audio(sclip_list[0].audio)
-# else:
-#     final_video = concatenated_clip.set_audio(sclip_list[0].subclip(0, total_duration).audio)
-#
-# # total_duration
-# # tclip = sclip_list[0].subclip(0, total_duration)
-# # final_video = concatenated_clip.set_audio(sclip_list[0].subclip(0, total_duration).audio)
-# # final_video = concatenated_clip.set_audio(sclip_list[0].audio)
-#
-# output_path = f'data/simple_video_{multiply:.2f}_{iou_threshold:.2f}_{simularity_threshold:.2f}_{dissolve:.2f}_{random.randint(0, 999):3d}.mp4'
-# final_video.write_videofile(output_path, codec='libx264', audio_codec='aac')
-
-for i in range(len(sclip_list)):
-    sclip_list[i].close()
-# concatenated_clip.close()
-# final_video.close()
-
-end_time = time.time()
-elapsed_time = end_time - begin_time
-minutes = int(elapsed_time // 60)
-seconds = elapsed_time % 60
-print(f"Execution time: {minutes:d} minutes and {seconds:.2f} seconds")
