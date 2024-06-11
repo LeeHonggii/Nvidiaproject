@@ -1,11 +1,12 @@
 {
     "meta_info": {
-        "num_stream": 6,
+        "num_stream": 2,
         "frame_rate": [
             29.97002997002997,
             29.97002997002997
         ],
         "num_frames": 4795.2,
+        "init_time": 0,
         "duration": 160,
         "num_vector_pair": 3,
         "num_cross": 11,
@@ -22,141 +23,21 @@
             "file": "pose_sync_ive_baddie_2.mp4",
             "start": 0,
             "end": 0
-        },
-        {
-            "file": "filepath2",
-            "start": 0,
-            "end": 0
-        },
-        {
-            "file": "filepath3",
-            "start": 0,
-            "end": 0
-        },
-        {
-            "file": "filepath4",
-            "start": 0,
-            "end": 0
-        },
-        {
-            "file": "filepath5",
-            "start": 0,
-            "end": 0
         }
     ],
     "cross_points": [
         {
-            "frame_id": 145,
-            "next_stream": 2,
-            "vector_pairs": [
-                {
-                    "vector_1": [
-                        826,
-                        468,
-                        1065,
-                        484
-                    ],
-                    "vector_2": [
-                        1000,
-                        416,
-                        1106,
-                        421
-                    ]
-                }
-            ]
-        },
-        {
-            "frame_id": 150,
-            "next_stream": 3,
-            "vector_pairs": [
-                {
-                    "vector_1": [
-                        827,
-                        375,
-                        1021,
-                        382
-                    ],
-                    "vector_2": [
-                        997,
-                        416,
-                        1104,
-                        423
-                    ]
-                }
-            ]
-        },
-        {
-            "frame_id": 155,
-            "next_stream": 4,
-            "vector_pairs": [
-                {
-                    "vector_1": [
-                        837,
-                        381,
-                        1029,
-                        389
-                    ],
-                    "vector_2": [
-                        992,
-                        417,
-                        1101,
-                        421
-                    ]
-                }
-            ]
-        },
-        {
-            "frame_id": 290,
-            "next_stream": 5,
-            "vector_pairs": [
-                {
-                    "vector_1": [
-                        852,
-                        338,
-                        1108,
-                        384
-                    ],
-                    "vector_2": [
-                        982,
-                        416,
-                        1094,
-                        421
-                    ]
-                }
-            ]
-        },
-        {
-            "frame_id": 510,
+            "frame_id": 4.838171504838172,
             "next_stream": 0,
             "vector_pairs": [
                 {
-                    "vector_1": [
-                        857,
-                        352,
-                        1112,
-                        396
-                    ],
-                    "vector_2": [
-                        978,
-                        414,
-                        1092,
-                        419
-                    ]
-                }
-            ]
-        },
-        {
-            "frame_id": 520,
-            "next_stream": 2,
-            "vector_pairs": [
-                {
-                    "vector_1": [
+                    "vector1": [
                         826,
                         468,
                         1065,
                         484
                     ],
-                    "vector_2": [
+                    "vector2": [
                         1000,
                         416,
                         1106,
@@ -166,60 +47,80 @@
             ]
         },
         {
-            "frame_id": 555,
-            "next_stream": 3,
+            "frame_id": 5.171838505171839,
+            "next_stream": 1,
             "vector_pairs": [
                 {
-                    "vector_1": [
-                        827,
-                        375,
-                        1021,
-                        382
+                    "vector1": [
+                        826,
+                        468,
+                        1065,
+                        484
                     ],
-                    "vector_2": [
-                        997,
+                    "vector2": [
+                        1000,
                         416,
-                        1104,
-                        423
-                    ]
-                }
-            ]
-        },
-        {
-            "frame_id": 660,
-            "next_stream": 4,
-            "vector_pairs": [
-                {
-                    "vector_1": [
-                        837,
-                        381,
-                        1029,
-                        389
-                    ],
-                    "vector_2": [
-                        992,
-                        417,
-                        1101,
+                        1106,
                         421
                     ]
                 }
             ]
         },
         {
-            "frame_id": 675,
-            "next_stream": 5,
+            "frame_id": 17.017017017017018,
+            "next_stream": 0,
             "vector_pairs": [
                 {
-                    "vector_1": [
-                        852,
-                        338,
-                        1108,
-                        384
+                    "vector1": [
+                        826,
+                        468,
+                        1065,
+                        484
                     ],
-                    "vector_2": [
-                        982,
+                    "vector2": [
+                        1000,
                         416,
-                        1094,
+                        1106,
+                        421
+                    ]
+                }
+            ]
+        },
+        {
+            "frame_id": 17.350684017350687,
+            "next_stream": 1,
+            "vector_pairs": [
+                {
+                    "vector1": [
+                        826,
+                        468,
+                        1065,
+                        484
+                    ],
+                    "vector2": [
+                        1000,
+                        416,
+                        1106,
+                        421
+                    ]
+                }
+            ]
+        },
+        {
+            "frame_id": 22.022022022022025,
+            "next_stream": 0,
+            "vector_pairs": [
+                {
+                    "vector1": [
+                        826,
+                        468,
+                        1065,
+                        484
+                    ],
+                    "vector2": [
+                        1000,
+                        416,
+                        1106,
                         421
                     ]
                 }

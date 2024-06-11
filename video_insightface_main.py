@@ -3,6 +3,7 @@ import numpy as np
 import os
 from insightface.app import FaceAnalysis
 import json
+import random
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from math import radians, degrees, sin, cos, acos
 from sympy import symbols, Eq, solve
@@ -210,9 +211,10 @@ def create_json_structure(
 ):
     # Define meta information
     meta_info = {
-        "num_stream": 6,
+        "num_stream": len(video_paths),
         "frame_rate": (fps1, fps2),
         "num_frames": 4795.2,  # Example value
+        "init_time": 0,
         "duration": 160,  # Example value
         "num_vector_pair": 3,  # Example, adjust based on your actual data
         "num_cross": len(matched_faces),  # Example, adjust based on your actual data
@@ -223,10 +225,12 @@ def create_json_structure(
     # Define streams
     streams = [{"file": vp, "start": 0, "end": 0} for vp in video_paths]
 
+    time_conversion = 1 / 29.97
+
     # Define cross_points
     cross_points = []
     for idx, frame_id in enumerate(matched_faces):
-        stream_index = idx % 6
+        stream_index = idx % len(video_paths)
         if (
             len(eye_endpoints1) > stream_index
             and len(eye_endpoints1[stream_index]) > 0
@@ -249,9 +253,9 @@ def create_json_structure(
                 + list(eye_endpoints2[stream_index][0][1])
             )
             cross_point = {
-                "frame_id": frame_id,
-                "next_stream": (stream_index + 1) % 6,
-                "vector_pairs": [{"vector_1": vector_1, "vector_2": vector_2}],
+                "frame_id": frame_id * time_conversion,
+                "next_stream": random.randrange(len(video_paths)),
+                "vector_pairs": [{"vector1": vector_1, "vector2": vector_2}],
             }
             cross_points.append(cross_point)
 
@@ -299,18 +303,9 @@ if __name__ == "__main__":
     )
     print(matched_faces)
 
-    for i in matched_faces:
-        print(i // 30, i % 30)
-
-    # print("Face positions:", face_positions)
-    # print("Face recognitions:", face_recognitions)
     video_paths = [
         video_1,
         video_2,
-        "filepath2",
-        "filepath3",
-        "filepath4",
-        "filepath5",
     ]
 
     # Create the JSON structure
