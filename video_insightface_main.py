@@ -23,6 +23,8 @@ def process_video(video_path):
     fps = cap.get(cv2.CAP_PROP_FPS)
     is_4k = width >= 1080 and height >= 1080
     display_scale_factor = 0.5 if is_4k else 1
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = total_frames / fps if fps else 0
 
     app = FaceAnalysis(
         allowed_modules=["detection", "landmark_2d_106"],
@@ -100,7 +102,7 @@ def process_video(video_path):
     cap.release()
     cv2.destroyAllWindows()
 
-    return face_positions, eye_endpoint, face_recognitions, fps
+    return face_positions, eye_endpoint, face_recognitions, fps, total_frames, duration
 
 
 def intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2):
@@ -189,16 +191,10 @@ def find_matching_faces(
                 x2, y2, w2, h2 = frame_faces2[j]
                 iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
 
-                if iou_score > 0.5:
-                    vector_1 = feature_vector_from_eyes(*eye_endpoints1[frame_index][i])
-                    vector_2 = feature_vector_from_eyes(*eye_endpoints2[frame_index][j])
-                    cosine_sim = calculate_cosine_similarity(vector_1, vector_2)
-
-                    if cosine_sim > 0.5:
-                        matched_faces.append(((frame_index + 1) * 5))
-                        print(
-                            f"Matched Face at Frame {(frame_index + 1) * 5}: IOU {iou_score:.2f}, Cosine {cosine_sim:.2f}"
-                        )
+                if iou_score > 0.6:
+                    current_frame = (frame_index + 1) * 5
+                    matched_faces.append(current_frame)
+                    print(f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}")
 
     return matched_faces
 
@@ -208,15 +204,25 @@ def recognition():
 
 
 def create_json_structure(
-    matched_faces, eye_endpoints1, eye_endpoints2, video_paths, folder_path, fps1, fps2
+    matched_faces,
+    eye_endpoints1,
+    eye_endpoints2,
+    video_paths,
+    folder_path,
+    fps1,
+    fps2,
+    total_frames1,
+    total_frames2,
+    duration1,
+    duration2,
 ):
     # Define meta information
     meta_info = {
         "num_stream": len(video_paths),
         "frame_rate": (fps1, fps2),
-        "num_frames": 4795.2,  # Example value
+        "num_frames": (total_frames1, total_frames2),  # Example value
         "init_time": 0,
-        "duration": 160,  # Example value
+        "duration": (duration1, duration2),  # Example value
         "num_vector_pair": 3,  # Example, adjust based on your actual data
         "num_cross": len(matched_faces),  # Example, adjust based on your actual data
         "first_stream": 0,  # Example value
@@ -234,39 +240,37 @@ def create_json_structure(
     cross_points = []
     for idx, frame_id in enumerate(matched_faces):
         current_stream = next_stream
-        if current_stream == len(video_paths) and next_stream == len(video_paths):
-            current_stream = 0
+        if current_stream == len(video_paths) - 1:
             next_stream = 0
-        stream_index = idx % len(video_paths)
+        else:
+            next_stream += 1
+
+        # Calculate the index for eye endpoints based on matched frame
+        index1 = frame_id // 5  # Assuming 5 is your sampling interval
+        index2 = index1
 
         if (
-            len(eye_endpoints1) > stream_index
-            and len(eye_endpoints1[stream_index]) > 0
-            and len(eye_endpoints2) > stream_index
-            and len(eye_endpoints2[stream_index]) > 0
+            index1 < len(eye_endpoints1)
+            and index2 < len(eye_endpoints2)
+            and len(eye_endpoints1[index1]) > 0
+            and len(eye_endpoints2[index2]) > 0
         ):
-            # Ensure that there is at least one eye endpoint data tuple for the current index
+            # Extract vectors from the corresponding frame's data
             vector_1 = (
-                eye_endpoints1[stream_index][0][0].tolist()
-                + eye_endpoints1[stream_index][0][1].tolist()
-                if isinstance(eye_endpoints1[stream_index][0][0], np.ndarray)
-                else list(eye_endpoints1[stream_index][0][0])
-                + list(eye_endpoints1[stream_index][0][1])
+                eye_endpoints1[index1][0][0].tolist()
+                + eye_endpoints1[index1][0][1].tolist()
             )
             vector_2 = (
-                eye_endpoints2[stream_index][0][0].tolist()
-                + eye_endpoints2[stream_index][0][1].tolist()
-                if isinstance(eye_endpoints2[stream_index][0][0], np.ndarray)
-                else list(eye_endpoints2[stream_index][0][0])
-                + list(eye_endpoints2[stream_index][0][1])
+                eye_endpoints2[index2][0][0].tolist()
+                + eye_endpoints2[index2][0][1].tolist()
             )
+
             cross_point = {
                 "frame_id": frame_id * time_conversion,
                 "next_stream": next_stream,
                 "vector_pairs": [{"vector1": vector_1, "vector2": vector_2}],
             }
             cross_points.append(cross_point)
-            next_stream = next_stream + 1
 
     # Define scene_list for each stream
     scene_list = [
@@ -300,12 +304,22 @@ if __name__ == "__main__":
     video_2 = "pose_sync_ive_baddie_2.mp4"
     video_path1 = folder_path + video_1
     video_path2 = folder_path + video_2
-    face_positions1, eye_endpoint1, face_recognitions1, fps1 = process_video(
-        video_path1
-    )
-    face_positions2, eye_endpoint2, face_recognitions2, fps2 = process_video(
-        video_path2
-    )
+    (
+        face_positions1,
+        eye_endpoint1,
+        face_recognitions1,
+        fps1,
+        total_frames1,
+        duration1,
+    ) = process_video(video_path1)
+    (
+        face_positions2,
+        eye_endpoint2,
+        face_recognitions2,
+        fps2,
+        total_frames2,
+        duration2,
+    ) = process_video(video_path2)
 
     matched_faces = find_matching_faces(
         face_positions1, eye_endpoint1, face_positions2, eye_endpoint2
@@ -326,6 +340,10 @@ if __name__ == "__main__":
         folder_path,
         fps1,
         fps2,
+        total_frames1,
+        total_frames2,
+        duration1,
+        duration2,
     )
 
     # Write the JSON structure to a file
