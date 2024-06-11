@@ -15,6 +15,9 @@ def calculate_signed_angle(v1, v2):
     length_v2 = length(v2)
 
     cos_theta = dot_prod / (length_v1 * length_v2)
+    print(cos_theta, dot_prod, length_v1, length_v2)
+    if cos_theta > 1:
+        cos_theta = 1
     angle_radians = acos(cos_theta)
     angle_degrees = degrees(angle_radians)
 
@@ -36,6 +39,9 @@ def find_intersection(x1, y1, a, x2, y2, b):
 
 
 def get_adjusted_clip(clip, v1, v2):
+    if v1 == v2:
+        return clip
+
     width, height = clip.size
     center_x = width / 2
     center_y = height / 2
@@ -60,7 +66,7 @@ def get_adjusted_clip(clip, v1, v2):
     print(f"distance: {distance:.2f}, length_1: {length_1:.2f}, length_2: {length_2:.2f}, ratio: {ratio:.2f}")
 
     # 1) moving
-    clip = clip.on_color(size=(1280, 720), color=(0, 0, 0), pos=(-diff_x, -diff_y))
+    clip = clip.on_color(size=(width, height), color=(0, 0, 0), pos=(-diff_x, -diff_y))
 
     # 2) rotation
     rotate_angle = calculate_signed_angle((w1, h1), (w2, h2))
@@ -74,8 +80,11 @@ def get_adjusted_clip(clip, v1, v2):
     # print(f"rotated_move_x: {rotated_move_x:.2f}, rotated_move_x: {rotated_move_y:.2f}")
 
     clip = clip.rotate(rotate_angle)
+    print(solution)
 
     i = 0 if rotate_angle > 0 else 1
+    if len(solution) == 1:
+        i = 0
     rotated_move_x = (solution[i][0] - x1) * 2
     rotated_move_y = (solution[i][1] - y1) * 2
 
@@ -96,8 +105,8 @@ def get_adjusted_clip(clip, v1, v2):
     print(f"rotated_move_x: {rotated_move_x:.1f} + window_move_x: {window_move_x:.1f} + scaled_move_x: {scaled_move_x:.1f} = total_move_x: {total_move_x:.1f}")
     print(f"rotated_move_y: {rotated_move_y:.1f} + window_move_y: {window_move_y:.1f} + scaled_move_y: {scaled_move_y:.1f} = total_move_y: {total_move_y:.1f}")
 
-    clip = clip.on_color(size=(1280, 720), color=(0, 0, 0), pos=(-total_move_x, -total_move_y))
-    clip = clip.resize(newsize=(1280, 720))
+    clip = clip.on_color(size=(width, height), color=(0, 0, 0), pos=(-total_move_x, -total_move_y))
+    clip = clip.resize(newsize=(width, height))
 
     return clip
 
@@ -106,15 +115,32 @@ if __name__ == "__main__":
     clip1 = VideoFileClip("data/line1.mp4")
     clip2 = VideoFileClip("data/line2.mp4")
 
-    x1, y1, x12, y12 = (100, 100, 220, 100)
-    x2, y2, x22, y22 = (120, 120, 200, 140)
-    v1 = (x1, y1, x12 - x1, y12 - y1)
-    v2 = (x2, y2, x22 - x2, y22 - y2)
+    # line1 = x1, y1, x12, y12 = (100, 100, 220, 100)
+    # line2 = x2, y2, x22, y22 = (120, 120, 200, 140)
+    # v1 = (x1, y1, x12 - x1, y12 - y1)
+    # v2 = (x2, y2, x22 - x2, y22 - y2)
+    a = 720 / 1080
+    v1 = (int(788*a), int(229*a), int(395*a), int(395*a))
+    v2 = (int(790*a), int(233*a), int(406*a), int(406*a))
+    x1, y1, w1, h1 = v1
+    x2, y2, w2, h2 = v2
+    line1 = (x1, y1, x1 + w1, y1 + h1)
+    line2 = (x2, y2, x2 + w2, y2 + h2)
     # prepare_sample(line1, line2)
 
-    adjust_clip = get_adjusted_clip(clip2, v1, v2)
+    c1 = VideoFileClip("data/subclip10.mp4")
+    c2 = VideoFileClip("data/subclip11.mp4")
+    c3 = VideoFileClip("data/subclip12.mp4")
+    c4 = VideoFileClip("data/subclip13.mp4")
+    print(c1.size)
+    print(c2.size)
+    print(c3.size)
+    print(c4.size)
+    final_clip = concatenate_videoclips([c1, c2, c3, c4])
 
-    final_clip = concatenate_videoclips([clip1, adjust_clip])
+    # adjust_clip = get_adjusted_clip(clip2, v1, v2)
+    #
+    # final_clip = concatenate_videoclips([clip1, adjust_clip])
     final_clip.write_videofile("data/adjust_video.mp4", codec='libx264', audio_codec='aac')
 
     clip1.close()

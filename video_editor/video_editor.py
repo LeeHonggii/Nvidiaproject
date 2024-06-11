@@ -9,7 +9,7 @@ begin_time = time.time()
 
 dissolve = 0.0
 
-with open("data/output-8.json", "r", encoding="utf-8") as file:
+with open("data/output-full.json", "r", encoding="utf-8") as file:
     json_string_from_file = file.read()
 
 parameter = json.loads(json_string_from_file)
@@ -30,52 +30,69 @@ for i in range(num_stream):
         sclip_list[-1].subclip(parameter["streams"][i]["start"], parameter["streams"][i]["end"])
         print("ALERT!!!")
 
-# total_duration = int(sclip_list[0].duration)
-
-
-start_time = init_time
-move_x = 0
-move_y = 0
-
+last_cross = {
+    "frame_id": init_time + total_duration,
+    "next_stream": cross_list[-1]["next_stream"],
+    "vector_pairs": [
+        {
+            "vector1": [0, 0, 0, 0],
+            "vector2": [0, 0, 0, 0]
+        }
+    ]
+}
+cross_list.append(last_cross)
+if num_cross + 1 != len(cross_list):
+    print("!!!INVLIDS cross number:", num_cross)
+else:
+    num_cross += 1
 print(cross_list)
 
-frame_gap = 1
+start_time = init_time
+# move_x = 0
+# move_y = 0
+current_vector = [0, 0, 0, 0]
+next_vector = [0, 0, 0, 0]
+# frame_gap = 1
 # frame_gap = 1 / 29.97
 
 for i in range(num_cross):
-    current_time = cross_list[i]["frame_id"] * frame_gap
-    next_stream = cross_list[i]["next_stream"]
+    current_time = cross_list[i]["frame_id"]
+    clip = sclip_list[current_stream].subclip(start_time, current_time)
+    clip = get_adjusted_clip(clip, current_vector, next_vector)
+    tclip_list.append(clip)
+    print(f"stream: {current_stream}, start: {start_time:.1f}, end: {current_time}, cv: {current_vector}, nv: {next_vector}")
+
+    start_time = current_time
+    current_stream = cross_list[i]["next_stream"]
     current_vector = cross_list[i]["vector_pairs"][0]["vector1"]
     next_vector = cross_list[i] ["vector_pairs"][0]["vector2"]
 
-    print(start_time, current_time, current_stream, next_stream, current_vector, next_vector)
+    # cx, cy, cw, ch = current_vector
+    # ix, iy, iw, ih = next_vector
+    #
+    # if move_x == 0 and move_y == 0:
+    #     tclip_list.append(sclip_list[current_stream].subclip(start_time, current_time))
+    # else:
+    #     print(f"move x: {move_x} / move y: {move_y}")
+    #     temp_clip = sclip_list[current_stream].subclip(start_time, current_time)
+    #     moved_clip = temp_clip.set_position((move_x, move_y))
+    #     composite_clip = CompositeVideoClip([moved_clip])
+    #     # composite_clip = CompositeVideoClip([temp_clip, moved_clip])
+    #     tclip_list.append(composite_clip)
 
-    cx, cy, cw, ch = current_vector
-    ix, iy, iw, ih = next_vector
-
-    if move_x == 0 and move_y == 0:
-        tclip_list.append(sclip_list[current_stream].subclip(start_time, current_time))
-    else:
-        print(f"move x: {move_x} / move y: {move_y}")
-        temp_clip = sclip_list[current_stream].subclip(start_time, current_time)
-        moved_clip = temp_clip.set_position((move_x, move_y))
-        composite_clip = CompositeVideoClip([moved_clip])
-        # composite_clip = CompositeVideoClip([temp_clip, moved_clip])
-        tclip_list.append(composite_clip)
-
-    current_stream = next_stream
-    start_time = current_time
-    # print(f"current_rect: ({cx}, {cy}, {cw}, {ch}) / next_rect: ({ix}, {iy}, {iw}, {ih})")
-    # print(f"diff w: {cw-iw} / diff w%:{abs(cw-iw)/min(cw,iw)/100:.4f}%")
-    # print(f"diff h: {ch-ih} / diff w%:{abs(ch-ih)/min(ch,ih)/100:.4f}%")
-    # print(f"move x: {cx-ix} / move y: {cy-iy}")
-    move_x = cx-ix
-    move_y = cy-iy
-    # move_x = cx-ix + move_x
-    # move_y = cy-iy + move_y
+    # current_stream = next_stream
+    # start_time = current_time
+    # # print(f"current_rect: ({cx}, {cy}, {cw}, {ch}) / next_rect: ({ix}, {iy}, {iw}, {ih})")
+    # # print(f"diff w: {cw-iw} / diff w%:{abs(cw-iw)/min(cw,iw)/100:.4f}%")
+    # # print(f"diff h: {ch-ih} / diff w%:{abs(ch-ih)/min(ch,ih)/100:.4f}%")
+    # # print(f"move x: {cx-ix} / move y: {cy-iy}")
+    # move_x = cx-ix
+    # move_y = cy-iy
+    # # move_x = cx-ix + move_x
+    # # move_y = cy-iy + move_y
 
 
-tclip_list.append(sclip_list[current_stream].subclip(start_time, init_time + total_duration))
+# tclip_list.append(sclip_list[current_stream].subclip(start_time, init_time + total_duration))
 
 # print("final clip", start_time, total_duration)
 
