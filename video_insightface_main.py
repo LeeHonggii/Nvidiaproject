@@ -32,8 +32,6 @@ def process_video(video_path):
     )
     app.prepare(ctx_id=0, det_size=(640, 640))
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-
     window_name = "Video"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     if display_scale_factor != 1:
@@ -67,7 +65,7 @@ def process_video(video_path):
                 area = w * h
                 distance_to_center = np.sqrt((center_x - x) ** 2 + (center_y - y) ** 2)
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                current_frame_positions.append((x, y, w, h))
+
                 if "landmark_2d_106" in face:
                     lmk = face["landmark_2d_106"]
                     lmk = np.round(lmk).astype(np.int64)
@@ -78,6 +76,7 @@ def process_video(video_path):
 
                     if distance_to_center < width * 0.25 and area > max_area:
                         max_area = area
+                        current_frame_positions.append((x, y, w, h))
                         current_frame_eye_data.append((lmk[35], lmk[93]))
                         cv2.line(frame, tuple(lmk[35]), tuple(lmk[93]), (255, 0, 0), 2)
 
@@ -179,13 +178,22 @@ def find_matching_faces(
         frame_faces1 = face_positions1[frame_index]
         frame_faces2 = face_positions2[frame_index]
 
+        # Ensure there are eye endpoints for both videos at this frame index
+        if not eye_endpoints1[frame_index] or not eye_endpoints2[frame_index]:
+            print(f"Skipping frame {frame_index*5 + 1} due to missing eye data.")
+            continue  # Skip frames without valid eye endpoint data
+
         for i in range(len(frame_faces1)):
-            if i >= len(eye_endpoints1[frame_index]):  # Check if the index is valid
-                continue
+            if i >= len(
+                eye_endpoints1[frame_index]
+            ):  # Check if eye endpoint index is valid
+                continue  # Skip if no valid eye data for this index in video 1
 
             for j in range(len(frame_faces2)):
-                if j >= len(eye_endpoints2[frame_index]):  # Check if the index is valid
-                    continue
+                if j >= len(
+                    eye_endpoints2[frame_index]
+                ):  # Check if eye endpoint index is valid
+                    continue  # Skip if no valid eye data for this index in video 2
 
                 x1, y1, w1, h1 = frame_faces1[i]
                 x2, y2, w2, h2 = frame_faces2[j]
@@ -235,39 +243,37 @@ def create_json_structure(
 
     # Define cross_points
     cross_points = []
-    for idx, frame_id in enumerate(matched_faces):
-        current_stream = next_stream
-        if current_stream == len(video_paths) - 1:
-            next_stream = 0
-        else:
-            next_stream += 1
 
-        # Calculate the index for eye endpoints based on matched frame
+    for idx, frame_id in enumerate(matched_faces):
         index1 = frame_id // 5  # Assuming 5 is your sampling interval
         index2 = index1
 
-        if (
-            index1 < len(eye_endpoints1)
-            and index2 < len(eye_endpoints2)
-            and len(eye_endpoints1[index1]) > 0
-            and len(eye_endpoints2[index2]) > 0
-        ):
-            # Extract vectors from the corresponding frame's data
-            vector_1 = (
-                eye_endpoints1[index1][0][0].tolist()
-                + eye_endpoints1[index1][0][1].tolist()
-            )
-            vector_2 = (
-                eye_endpoints2[index2][0][0].tolist()
-                + eye_endpoints2[index2][0][1].tolist()
-            )
+        if index1 < len(eye_endpoints1) and index2 < len(eye_endpoints2):
+            if eye_endpoints1[index1] and eye_endpoints2[index2]:
+                vector_1 = (
+                    eye_endpoints1[index1][0][0].tolist()
+                    + eye_endpoints1[index1][0][1].tolist()
+                )
+                vector_2 = (
+                    eye_endpoints2[index2][0][0].tolist()
+                    + eye_endpoints2[index2][0][1].tolist()
+                )
 
-            cross_point = {
-                "frame_id": frame_id * time_conversion,
-                "next_stream": next_stream,
-                "vector_pairs": [{"vector1": vector_1, "vector2": vector_2}],
-            }
-            cross_points.append(cross_point)
+                cross_point = {
+                    "frame_id": frame_id * time_conversion,
+                    "next_stream": next_stream,
+                    "vector_pairs": [{"vector1": vector_1, "vector2": vector_2}],
+                }
+                cross_points.append(cross_point)
+                next_stream = (next_stream + 1) % len(video_paths)
+            else:
+                print(
+                    f"No valid eye endpoint data for frame_id {frame_id} at indices index1={index1}, index2={index2}"
+                )
+        else:
+            print(
+                f"Index out of range for frame_id {frame_id}: index1={index1}, index2={index2}, Lengths: {len(eye_endpoints1)}, {len(eye_endpoints2)}"
+            )
 
     # Define scene_list for each stream
     scene_list = [
@@ -343,5 +349,7 @@ if __name__ == "__main__":
     # Write the JSON structure to a file
     output_file = "output.json"
     write_json_file(json_structure, output_file)
+    print(eye_endpoint1[135])
+    print(eye_endpoint2[135])
 
     print(f"JSON file '{output_file}' has been written with the video analysis data.")
