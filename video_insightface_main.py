@@ -210,19 +210,16 @@ def create_json_structure(
     video_paths,
     folder_path,
     fps1,
-    fps2,
     total_frames1,
-    total_frames2,
     duration1,
-    duration2,
 ):
     # Define meta information
     meta_info = {
         "num_stream": len(video_paths),
-        "frame_rate": (fps1, fps2),
-        "num_frames": (total_frames1, total_frames2),  # Example value
+        "frame_rate": fps1,
+        "num_frames": total_frames1,  # Example value
         "init_time": 0,
-        "duration": (duration1, duration2),  # Example value
+        "duration": duration1,  # Example value
         "num_vector_pair": 3,  # Example, adjust based on your actual data
         "num_cross": len(matched_faces),  # Example, adjust based on your actual data
         "first_stream": 0,  # Example value
@@ -299,7 +296,7 @@ def write_json_file(parameter, output_file):
 
 
 if __name__ == "__main__":
-    folder_path = "./video/"  # Folder path for storing videos
+    folder_path = "./data/"  # Folder path for storing videos
     video_1 = "pose_sync_ive_baddie_1.mp4"
     video_2 = "pose_sync_ive_baddie_2.mp4"
     video_path1 = folder_path + video_1
@@ -339,11 +336,8 @@ if __name__ == "__main__":
         video_paths,
         folder_path,
         fps1,
-        fps2,
         total_frames1,
-        total_frames2,
         duration1,
-        duration2,
     )
 
     # Write the JSON structure to a file

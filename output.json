@@ -1,23 +1,14 @@
 {
     "meta_info": {
         "num_stream": 2,
-        "frame_rate": [
-            29.97002997002997,
-            29.97002997002997
-        ],
-        "num_frames": [
-            774,
-            774
-        ],
+        "frame_rate": 29.97002997002997,
+        "num_frames": 774,
         "init_time": 0,
-        "duration": [
-            25.8258,
-            25.8258
-        ],
+        "duration": 25.8258,
         "num_vector_pair": 3,
         "num_cross": 8,
         "first_stream": 0,
-        "folder_path": "./video/"
+        "folder_path": "./data/"
     },
     "streams": [
         {
