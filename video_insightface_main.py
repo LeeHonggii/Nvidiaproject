@@ -235,26 +235,18 @@ def create_json_structure(
         ):
             # Ensure that there is at least one eye endpoint data tuple for the current index
             vector_1 = (
-                [
-                    eye_endpoints1[stream_index][0][0].tolist(),
-                    eye_endpoints1[stream_index][0][1].tolist(),
-                ]
+                eye_endpoints1[stream_index][0][0].tolist()
+                + eye_endpoints1[stream_index][0][1].tolist()
                 if isinstance(eye_endpoints1[stream_index][0][0], np.ndarray)
-                else [
-                    list(eye_endpoints1[stream_index][0][0]),
-                    list(eye_endpoints1[stream_index][0][1]),
-                ]
+                else list(eye_endpoints1[stream_index][0][0])
+                + list(eye_endpoints1[stream_index][0][1])
             )
             vector_2 = (
-                [
-                    eye_endpoints2[stream_index][0][0].tolist(),
-                    eye_endpoints2[stream_index][0][1].tolist(),
-                ]
+                eye_endpoints2[stream_index][0][0].tolist()
+                + eye_endpoints2[stream_index][0][1].tolist()
                 if isinstance(eye_endpoints2[stream_index][0][0], np.ndarray)
-                else [
-                    list(eye_endpoints2[stream_index][0][0]),
-                    list(eye_endpoints2[stream_index][0][1]),
-                ]
+                else list(eye_endpoints2[stream_index][0][0])
+                + list(eye_endpoints2[stream_index][0][1])
             )
             cross_point = {
                 "frame_id": frame_id,
@@ -290,8 +282,11 @@ def write_json_file(parameter, output_file):
 
 
 if __name__ == "__main__":
-    video_path1 = "./video/pose_sync_ive_baddie_1.mp4"
-    video_path2 = "./video/pose_sync_ive_baddie_2.mp4"
+    folder_path = "./video/"  # Folder path for storing videos
+    video_1 = "pose_sync_ive_baddie_1.mp4"
+    video_2 = "pose_sync_ive_baddie_2.mp4"
+    video_path1 = folder_path + video_1
+    video_path2 = folder_path + video_2
     face_positions1, eye_endpoint1, face_recognitions1, fps1 = process_video(
         video_path1
     )
@@ -310,14 +305,13 @@ if __name__ == "__main__":
     # print("Face positions:", face_positions)
     # print("Face recognitions:", face_recognitions)
     video_paths = [
-        video_path1,
-        video_path2,
+        video_1,
+        video_2,
         "filepath2",
         "filepath3",
         "filepath4",
         "filepath5",
     ]
-    folder_path = "data"  # Folder path for storing videos
 
     # Create the JSON structure
     json_structure = create_json_structure(
