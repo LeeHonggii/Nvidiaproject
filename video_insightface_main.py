@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import os
 from insightface.app import FaceAnalysis
-import time
 import json
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from math import radians, degrees, sin, cos, acos
@@ -19,6 +18,7 @@ def process_video(video_path):
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    center_x, center_y = width // 2, height // 2
     fps = cap.get(cv2.CAP_PROP_FPS)
     is_4k = width >= 1080 and height >= 1080
     display_scale_factor = 0.5 if is_4k else 1
@@ -45,8 +45,6 @@ def process_video(video_path):
     face_recognitions = []
     eye_endpoint = []
 
-    start_time = time.time()
-
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -58,12 +56,15 @@ def process_video(video_path):
         if frame_count % 5 == 0:
             faces = app.get(frame)
             current_frame_positions = []
+            max_area = 0
+
             for face in faces:
                 bbox = face["bbox"].astype(int)
                 x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
+                area = w * h
+                distance_to_center = np.sqrt((center_x - x) ** 2 + (center_y - y) ** 2)
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 current_frame_positions.append((x, y, w, h))
-
                 if "landmark_2d_106" in face:
                     lmk = face["landmark_2d_106"]
                     lmk = np.round(lmk).astype(np.int64)
@@ -71,7 +72,10 @@ def process_video(video_path):
                         cv2.circle(
                             frame, tuple(point), 3, (200, 160, 75), 1, cv2.LINE_AA
                         )
-                    current_frame_eye_data.append((lmk[35], lmk[93]))
+
+                    if distance_to_center < width * 0.25 and area > max_area:
+                        max_area = area
+                        current_frame_eye_data.append((lmk[35], lmk[93]))
 
             face_positions.append(current_frame_positions)
             eye_endpoint.append(current_frame_eye_data)
@@ -93,10 +97,8 @@ def process_video(video_path):
 
     cap.release()
     cv2.destroyAllWindows()
-    total_time = time.time() - start_time
-    print(f"Total processing time: {total_time:.2f} seconds")
 
-    return face_positions, eye_endpoint, face_recognitions
+    return face_positions, eye_endpoint, face_recognitions, fps
 
 
 def intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2):
@@ -185,12 +187,12 @@ def find_matching_faces(
                 x2, y2, w2, h2 = frame_faces2[j]
                 iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
 
-                if iou_score > 0.7:
+                if iou_score > 0.5:
                     vector_1 = feature_vector_from_eyes(*eye_endpoints1[frame_index][i])
                     vector_2 = feature_vector_from_eyes(*eye_endpoints2[frame_index][j])
                     cosine_sim = calculate_cosine_similarity(vector_1, vector_2)
 
-                    if cosine_sim > 0.7:
+                    if cosine_sim > 0.5:
                         matched_faces.append(((frame_index + 1) * 5))
                         print(
                             f"Matched Face at Frame {(frame_index + 1) * 5}: IOU {iou_score:.2f}, Cosine {cosine_sim:.2f}"
@@ -203,11 +205,13 @@ def recognition():
     pass
 
 
-def create_json_structure(matched_faces, video_paths, folder_path):
+def create_json_structure(
+    matched_faces, eye_endpoints1, eye_endpoints2, video_paths, folder_path, fps1, fps2
+):
     # Define meta information
     meta_info = {
         "num_stream": 6,
-        "frame_rate": 29.97,
+        "frame_rate": (fps1, fps2),
         "num_frames": 4795.2,  # Example value
         "duration": 160,  # Example value
         "num_vector_pair": 3,  # Example, adjust based on your actual data
@@ -221,18 +225,43 @@ def create_json_structure(matched_faces, video_paths, folder_path):
 
     # Define cross_points
     cross_points = []
-    for idx, mf in enumerate(matched_faces):
-        cross_point = {
-            "frame_id": mf,
-            "next_stream": (idx + 1) % 6,  # Simple circular increment example
-            "vector_pairs": [
-                # TODO: it should save vectors that shows of face complex
-                {"vector{idx}": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
-                {"vector1": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
-                {"vector1": [100, 200, 120, 210], "vector2": [105, 205, 121, 211]},
-            ],
-        }
-        cross_points.append(cross_point)
+    for idx, frame_id in enumerate(matched_faces):
+        stream_index = idx % 6
+        if (
+            len(eye_endpoints1) > stream_index
+            and len(eye_endpoints1[stream_index]) > 0
+            and len(eye_endpoints2) > stream_index
+            and len(eye_endpoints2[stream_index]) > 0
+        ):
+            # Ensure that there is at least one eye endpoint data tuple for the current index
+            vector_1 = (
+                [
+                    eye_endpoints1[stream_index][0][0].tolist(),
+                    eye_endpoints1[stream_index][0][1].tolist(),
+                ]
+                if isinstance(eye_endpoints1[stream_index][0][0], np.ndarray)
+                else [
+                    list(eye_endpoints1[stream_index][0][0]),
+                    list(eye_endpoints1[stream_index][0][1]),
+                ]
+            )
+            vector_2 = (
+                [
+                    eye_endpoints2[stream_index][0][0].tolist(),
+                    eye_endpoints2[stream_index][0][1].tolist(),
+                ]
+                if isinstance(eye_endpoints2[stream_index][0][0], np.ndarray)
+                else [
+                    list(eye_endpoints2[stream_index][0][0]),
+                    list(eye_endpoints2[stream_index][0][1]),
+                ]
+            )
+            cross_point = {
+                "frame_id": frame_id,
+                "next_stream": (stream_index + 1) % 6,
+                "vector_pairs": [{"vector_1": vector_1, "vector_2": vector_2}],
+            }
+            cross_points.append(cross_point)
 
     # Define scene_list for each stream
     scene_list = [
@@ -263,8 +292,12 @@ def write_json_file(parameter, output_file):
 if __name__ == "__main__":
     video_path1 = "./video/pose_sync_ive_baddie_1.mp4"
     video_path2 = "./video/pose_sync_ive_baddie_2.mp4"
-    face_positions1, eye_endpoint1, face_recognitions1 = process_video(video_path1)
-    face_positions2, eye_endpoint2, face_recognitions2 = process_video(video_path2)
+    face_positions1, eye_endpoint1, face_recognitions1, fps1 = process_video(
+        video_path1
+    )
+    face_positions2, eye_endpoint2, face_recognitions2, fps2 = process_video(
+        video_path2
+    )
 
     matched_faces = find_matching_faces(
         face_positions1, eye_endpoint1, face_positions2, eye_endpoint2
@@ -287,11 +320,18 @@ if __name__ == "__main__":
     folder_path = "data"  # Folder path for storing videos
 
     # Create the JSON structure
-    json_structure = create_json_structure(matched_faces, video_paths, folder_path)
+    json_structure = create_json_structure(
+        matched_faces,
+        eye_endpoint1,
+        eye_endpoint2,
+        video_paths,
+        folder_path,
+        fps1,
+        fps2,
+    )
 
     # Write the JSON structure to a file
     output_file = "output.json"
     write_json_file(json_structure, output_file)
 
     print(f"JSON file '{output_file}' has been written with the video analysis data.")
-
