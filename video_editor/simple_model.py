@@ -16,7 +16,8 @@ maxx = max
 parameter = {
    "meta_info" : {
       "num_stream": 6,
-      "frame_rate:": 29.97,
+      "metric": "time",
+      "frame_rate": 29.97,
       "num_frames": 0,         # (2 * 60 + 40 + 0 / 60) * 29.97,
       "init_time": 0,          # start at somewhere in the middle
       "duration": 160,          # 2 * 60 + 40 + 0 / 60,
@@ -219,7 +220,7 @@ for t in range(t_size):
                 print(f"!!!SWITCH to {max_i} / max iou: {max_iou:.2f} / simularity: {distance:.2f} at {current_time}")
 
                 cross_point = {}
-                cross_point["frame_id"] = current_time
+                cross_point["time_stamp"] = current_time
                 cross_point["next_stream"] = max_i
                 cross_point["vector_pairs"] = []
                 vector_pair = {}

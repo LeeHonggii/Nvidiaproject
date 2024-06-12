@@ -7,38 +7,46 @@
 parameter = {
    "meta_info" : {
       "num_stream": 6,
-      "frame_rate:": 29.97,
-      "num_frames": 4795.2,    # (2 * 60 + 40 + 0 / 60) * 29.97,
-      "duration": 16,          # 2 * 60 + 40 + 0 / 60,
+      "metric": "time",
+      "frame_rate": 29.97,
+      "num_frames": 0,         # (2 * 60 + 40 + 0 / 60) * 29.97,
+      "init_time": 0,          # start at somewhere in the middle
+      "duration": 160,          # 2 * 60 + 40 + 0 / 60,
       "num_vector_pair": 3,    # at least 1, maximum 3 recommended
       "num_cross": 15,         # number of crossedit
       "first_stream": 0,       # first stream can be any integer between 0 and 5
-      "folder_path": "data"
+      "folder_path": "data/"
    },
    "streams": [
       {
-         "file": "filepath0",
-         "start": 0
+         "file": "sync_ive_baddie_1.mp4",
+         "start": 0,
+         "end": 0
       },
       {
-         "file": "filepath1",
-         "start": 0
+         "file": "sync_ive_baddie_2.mp4",
+         "start": 0,
+         "end": 0
       },
       {
-         "file": "filepath2",
-         "start": 0
+         "file": "sync_ive_baddie_3.mp4",
+         "start": 0,
+         "end": 0
       },
       {
-         "file": "filepath3",
-         "start": 0
+         "file": "sync_ive_baddie_4.mp4",
+         "start": 0,
+         "end": 0
       },
       {
-         "file": "filepath4",
-         "start": 0
+         "file": "sync_ive_baddie_5.mp4",
+         "start": 0,
+         "end": 0
       },
       {
-         "file": "filepath5",
-         "start": 0
+         "file": "sync_ive_baddie_6.mp4",
+         "start": 0,
+         "end": 0
       }
    ],
    "cross_points": [

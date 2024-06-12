@@ -9,29 +9,73 @@ begin_time = time.time()
 
 dissolve = 0.0
 
-with open("data/output-full.json", "r", encoding="utf-8") as file:
+with open("data/output.json", "r", encoding="utf-8") as file:
     json_string_from_file = file.read()
 
 parameter = json.loads(json_string_from_file)
 
 num_stream = parameter["meta_info"]["num_stream"]
+# frame_rate = parameter["meta_info"]["frame_rate"]
 init_time = parameter["meta_info"]["init_time"]
 total_duration = parameter["meta_info"]["duration"]
 current_stream = parameter["meta_info"]["first_stream"]
 num_cross = parameter["meta_info"]["num_cross"]
+folder_path = parameter["meta_info"]["folder_path"]
 cross_list = parameter["cross_points"]
 sclip_list = []
 tclip_list = []
 
+streams = parameter["streams"]
+if num_stream != len(streams):
+    print(f"ALERT!!! invalid stream number. num_stream: {num_stream} vs len(parameter[\"streams\"]): {len(streams)}")
+
+
+def load_video_clip(filename):
+    try:
+        clip = VideoFileClip(filename)
+        print(filename)
+        return clip
+    except FileNotFoundError:
+        print(f"FileNotFoundError: {filename}")
+    except OSError as e:
+        print(f"OSError: {e}")
+    return None
+
+
+for stream in streams:
+    filename = folder_path + stream["file"]
+    clip = load_video_clip(filename)
+    if clip:
+        sclip_list.append(clip)
+        # if round(clip.fps, 2) != frame_rate:
+        #     print(f"ALERT!!! invalide frame rate in file \"{filename}\" {clip.fps} vs parameter[\"frame_rate\"]: {frame_rate}")
+        # else:
+        #     print(filename)
+
+        if stream["start"] != 0 or stream["end"] != 0:
+            sclip_list[-1].subclip(stream["start"], stream["end"])
+            print("ALERT!!! we do not support subclip so far")
+
+
+if num_stream != len(sclip_list):
+    print(f"ALERT!!! invalid stream number. num_stream: {num_stream} vs len(sclip_list): {len(sclip_list)}")
+    num_stream = len(sclip_list)    # can we continue?
+
+frame_rate = sclip_list[0].fps
 for i in range(num_stream):
-    sclip_list.append(VideoFileClip(parameter["meta_info"]["folder_path"] + parameter["streams"][i]["file"]))
-    print(parameter["meta_info"]["folder_path"] + parameter["streams"][i]["file"])
-    if parameter["streams"][i]["start"] != 0 or parameter["streams"][i]["end"] != 0:
-        sclip_list[-1].subclip(parameter["streams"][i]["start"], parameter["streams"][i]["end"])
-        print("ALERT!!!")
+    if i == 0:
+        frame_rate = sclip_list[i].fps
+    elif frame_rate != sclip_list[i].fps:
+        print(f"ALERT!!! different frame stream 0: {frame_rate} vs stream {i}: sclip_list[i].fps")
+        quit()
+
+if "metric" not in parameter["meta_info"] or parameter["meta_info"]["metric"] == "frame":
+    frame_gap = 1 / frame_rate
+    for cross in cross_list:
+        cross["time"] = cross["frame_id"] * frame_gap
 
 last_cross = {
-    "frame_id": init_time + total_duration,
+    "time": init_time + total_duration,
     "next_stream": cross_list[-1]["next_stream"],
     "vector_pairs": [
         {
@@ -52,11 +96,9 @@ start_time = init_time
 # move_y = 0
 current_vector = [0, 0, 0, 0]
 next_vector = [0, 0, 0, 0]
-# frame_gap = 1
-# frame_gap = 1 / 29.97
 
 for i in range(num_cross):
-    current_time = cross_list[i]["frame_id"]
+    current_time = cross_list[i]["time_stamp"]
     clip = sclip_list[current_stream].subclip(start_time, current_time)
     clip = get_adjusted_clip(clip, current_vector, next_vector)
     tclip_list.append(clip)
@@ -94,8 +136,6 @@ for i in range(num_cross):
 
 # tclip_list.append(sclip_list[current_stream].subclip(start_time, init_time + total_duration))
 
-# print("final clip", start_time, total_duration)
-
 print(len(tclip_list))
 for i, clip in enumerate(tclip_list):
     print(f"Clip {i} duration: {clip.duration}")
@@ -105,11 +145,6 @@ if total_duration == int(sclip_list[0].duration):
     final_video = concatenated_clip.set_audio(sclip_list[0].audio)
 else:
     final_video = concatenated_clip.set_audio(sclip_list[0].subclip(0, total_duration).audio)
-
-# total_duration
-# tclip = sclip_list[0].subclip(0, total_duration)
-# final_video = concatenated_clip.set_audio(sclip_list[0].subclip(0, total_duration).audio)
-# final_video = concatenated_clip.set_audio(sclip_list[0].audio)
 
 output_path = f'data/simple_video_{random.randint(0, 999):03d}.mp4'
 final_video.write_videofile(output_path, codec='libx264', audio_codec='aac')
