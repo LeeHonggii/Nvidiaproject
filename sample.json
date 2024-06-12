@@ -1,14 +1,15 @@
 {
     "meta_info": {
         "num_stream": 6,
-        "frame_rate:": 29.97,
+        "metric": "time",
+        "frame_rate": 29.97,
         "num_frames": 0,
         "init_time": 0,
         "duration": 10,
         "num_vector_pair": 3,
-        "num_cross": 4,
+        "num_cross": 3,
         "first_stream": 0,
-        "file_path": "data/"
+        "folder_path": "data/"
     },
     "streams": [
         {
@@ -44,7 +45,7 @@
     ],
     "cross_points": [
         {
-            "frame_id": 0.4,
+            "time_stamp": 0.4,
             "next_stream": 1,
             "vector_pairs": [
                 {
@@ -64,61 +65,41 @@
             ]
         },
         {
-            "frame_id": 1.8,
-            "next_stream": 4,
+            "time_stamp": 3.2,
+            "next_stream": 3,
             "vector_pairs": [
                 {
                     "vector1": [
-                        819,
-                        224,
-                        262,
-                        262
+                        1323,
+                        484,
+                        78,
+                        78
                     ],
                     "vector2": [
-                        863,
-                        151,
-                        268,
-                        268
+                        1324,
+                        475,
+                        76,
+                        76
                     ]
                 }
             ]
         },
         {
-            "frame_id": 4.8,
+            "time_stamp": 4.4,
             "next_stream": 2,
             "vector_pairs": [
                 {
                     "vector1": [
-                        785,
-                        198,
-                        249,
-                        249
+                        727,
+                        203,
+                        381,
+                        381
                     ],
                     "vector2": [
-                        735,
-                        260,
-                        255,
-                        255
-                    ]
-                }
-            ]
-        },
-        {
-            "frame_id": 6.9,
-            "next_stream": 0,
-            "vector_pairs": [
-                {
-                    "vector1": [
-                        1037,
-                        343,
-                        281,
-                        281
-                    ],
-                    "vector2": [
-                        885,
-                        212,
-                        364,
-                        364
+                        741,
+                        236,
+                        359,
+                        359
                     ]
                 }
             ]
