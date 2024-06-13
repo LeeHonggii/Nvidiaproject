@@ -7,7 +7,7 @@
         "init_time": 0,
         "duration": 25.8258,
         "num_vector_pair": 3,
-        "num_cross": 14,
+        "num_cross": 1,
         "first_stream": 1,
         "folder_path": "./data/"
     },
@@ -25,61 +25,21 @@
     ],
     "cross_points": [
         {
-            "frame_id": 4.671338004671338,
+            "time_stamp": 17.851166666666668,
             "next_stream": 0,
             "vector_pairs": [
                 {
                     "vector1": [
-                        648,
-                        145,
-                        686,
-                        151
+                        135,
+                        571,
+                        259,
+                        543
                     ],
                     "vector2": [
-                        1284,
-                        307,
-                        1323,
-                        320
-                    ]
-                }
-            ]
-        },
-        {
-            "frame_id": 5.005005005005006,
-            "next_stream": 1,
-            "vector_pairs": [
-                {
-                    "vector1": [
-                        194,
-                        231,
-                        368,
-                        189
-                    ],
-                    "vector2": [
-                        920,
-                        357,
-                        1091,
-                        337
-                    ]
-                }
-            ]
-        },
-        {
-            "frame_id": 5.005005005005006,
-            "next_stream": 0,
-            "vector_pairs": [
-                {
-                    "vector1": [
-                        194,
-                        231,
-                        368,
-                        189
-                    ],
-                    "vector2": [
-                        920,
-                        357,
-                        1091,
-                        337
+                        1752,
+                        496,
+                        1870,
+                        493
                     ]
                 }
             ]
