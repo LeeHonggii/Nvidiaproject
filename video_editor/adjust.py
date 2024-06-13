@@ -1,6 +1,7 @@
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from math import radians, degrees, sin, cos, acos
 from sympy import symbols, Eq, solve
+import bisect
 from line_add import prepare_sample
 
 dot_product = lambda v1, v2: v1[0] * v2[0] + v1[1] * v2[1]
@@ -50,7 +51,7 @@ def vector_interpolation(v1, v2):
     x2, y2, w2, h2 = v2
     x12, y12 = x1 + w1, y1 + h1
     x22, y22 = x2 + w2, y2 + h2
-    ix1, iy1, ix2, iy2 = (x1 + x2) / 2, (y1 + y2) / 2, (x12 + x22) / 2, (y12 + y22) / 2
+    ix1, iy1, ix2, iy2 = (x1 + x2) // 2, (y1 + y2) // 2, (x12 + x22) // 2, (y12 + y22) // 2
 
     return [ix1, iy1, ix2 - ix1, iy2 - iy1]
 
@@ -131,6 +132,13 @@ def get_adjusted_clip(clip, v1, v2):
 
     return clip
 
+def find_in_between(sorted_list, x, y):
+    start = bisect.bisect_left(sorted_list, x)
+    end = bisect.bisect_left(sorted_list, y)
+
+    return sorted_list[start:end]
+
+
 def line_to_vector(line1, line2):
     x1, y1, x12, y12 = line1
     x2, y2, x22, y22 = line2
@@ -181,6 +189,10 @@ if __name__ == "__main__":
     adjust_clip2 = get_adjusted_clip(clip2, v3, v2)
 
     final_clip = concatenate_videoclips([clip1, adjust_clip1, adjust_clip2])
+
+    # duration_sum = clip1.duration + adjust_clip1.duration + adjust_clip2.duration
+    # duration_final = final_clip.duration
+    # print(duration_sum, duration_final, duration_sum == duration_final)
     final_clip.write_videofile("data/adjust_video.mp4", codec='libx264', audio_codec='aac')
 
     clip1.close()
