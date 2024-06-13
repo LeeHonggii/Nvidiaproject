@@ -16,8 +16,6 @@ def process_video(video_path):
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS)
-    is_4k = width >= 1080 and height >= 1080
-    display_scale_factor = 0.5 if is_4k else 1
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     duration = total_frames / fps if fps else 0
 
@@ -29,12 +27,6 @@ def process_video(video_path):
 
     window_name = "Video"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-    if display_scale_factor != 1:
-        cv2.resizeWindow(
-            window_name,
-            int(width * display_scale_factor),
-            int(height * display_scale_factor),
-        )
 
     frame_count = 0
     face_positions = []
@@ -90,17 +82,7 @@ def process_video(video_path):
                 eye_endpoint.append(current_frame_eye_data)
                 face_recognitions.append(current_frame_face_data)
 
-            if display_scale_factor != 1:
-                display_frame = cv2.resize(
-                    frame,
-                    (
-                        int(width * display_scale_factor),
-                        int(height * display_scale_factor),
-                    ),
-                )
-                cv2.imshow(window_name, display_frame)
-            else:
-                cv2.imshow(window_name, frame)
+            cv2.imshow(window_name, frame)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
@@ -112,6 +94,8 @@ def process_video(video_path):
     print(len(face_positions))
 
     return face_positions, eye_endpoint, face_recognitions, fps, total_frames, duration
+
+
 
 
 def position_decision(x, y, w, h, width, height):
