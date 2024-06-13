@@ -16,6 +16,7 @@ def process_video(video_path):
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS)
+
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     duration = total_frames / fps if fps else 0
 
@@ -27,6 +28,7 @@ def process_video(video_path):
 
     window_name = "Video"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+
 
     frame_count = 0
     face_positions = []
@@ -82,6 +84,8 @@ def process_video(video_path):
                 eye_endpoint.append(current_frame_eye_data)
                 face_recognitions.append(current_frame_face_data)
 
+
+
             cv2.imshow(window_name, frame)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -94,8 +98,6 @@ def process_video(video_path):
     print(len(face_positions))
 
     return face_positions, eye_endpoint, face_recognitions, fps, total_frames, duration
-
-
 
 
 def position_decision(x, y, w, h, width, height):
@@ -354,7 +356,7 @@ if __name__ == "__main__":
     # Write the JSON structure to a file
     output_file = "output.json"
     write_json_file(json_structure, output_file)
-    print(eye_endpoint1[107])
-    print(eye_endpoint2[107])
+    print(eye_endpoint1[102])
+    print(eye_endpoint2[102])
 
     print(f"JSON file '{output_file}' has been written with the video analysis data.")
