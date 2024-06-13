@@ -53,30 +53,19 @@ def process_video(video_path):
 
         if frame_count % 5 == 0:  # Process every 5th frame
             faces = app.get(frame)
-            num_faces = len(faces)
 
-            if num_faces <= 3:
-                # Select the largest face when there are exactly three faces
-                for face in faces:
-                    bbox = face["bbox"].astype(int)
-                    x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    area = w * h
-                    if area > max_area:
-                        max_area = area
-                        best_face = face
-            elif num_faces > 3:
-                # Prioritize the face closest to the center when there are more than three faces
-                for face in faces:
-                    bbox = face["bbox"].astype(int)
-                    x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    distance = (
-                        (x + w / 2 - width / 2) ** 2 + (y + h / 2 - height / 2) ** 2
-                    ) ** 0.5
-                    if distance < min_distance:
-                        min_distance = distance
-                        best_face = face
+            for face in faces:
+                bbox = face["bbox"].astype(int)
+                x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                area = w * h
+                distance = (
+                    (x + w / 2 - width / 2) ** 2 + (y + h / 2 - height / 2) ** 2
+                ) ** 0.5
+                if area > max_area or distance < min_distance:
+                    max_area = area
+                    min_distance = distance
+                    best_face = face
 
             if best_face:
                 bbox = best_face["bbox"].astype(int)
@@ -269,7 +258,7 @@ def create_json_structure(
     # Define streams
     streams = [{"file": vp, "start": 0, "end": 0} for vp in video_paths]
 
-    time_conversion = 1 / 29.97
+    time_conversion = 1 / fps1
 
     next_stream = 0
 
@@ -277,9 +266,7 @@ def create_json_structure(
     cross_points = []
 
     for idx, frame_id in enumerate(matched_faces):
-        index1 = (
-            frame_id // 5
-        ) - 1  # Adjust index to match the eye_endpoint list indexing
+        index1 = frame_id // 5
         index2 = index1  # Assuming the frames are synchronized in both videos
 
         if 0 <= index1 < len(eye_endpoints1) and 0 <= index2 < len(eye_endpoints2):
@@ -294,7 +281,7 @@ def create_json_structure(
                 )
 
                 cross_point = {
-                    "time_stamp": frame_id / fps1,
+                    "time_stamp": frame_id * time_conversion,
                     "next_stream": next_stream,
                     "vector_pairs": [{"vector1": vector_1, "vector2": vector_2}],
                 }
