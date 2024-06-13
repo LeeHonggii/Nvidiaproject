@@ -1,0 +1,146 @@
+{
+    "meta_info": {
+        "num_stream": 6,
+        "metric": "time",
+        "frame_rate": 29.97,
+        "num_frames": 0,
+        "init_time": 0,
+        "duration": 10,
+        "num_vector_pair": 3,
+        "num_cross": 3,
+        "first_stream": 0,
+        "folder_path": "data/"
+    },
+    "streams": [
+        {
+            "file": "sync_ive_baddie_1.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_2.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_3.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_4.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_5.mp4",
+            "start": 0,
+            "end": 0
+        },
+        {
+            "file": "sync_ive_baddie_6.mp4",
+            "start": 0,
+            "end": 0
+        }
+    ],
+    "cross_points": [
+        {
+            "time_stamp": 0.4,
+            "next_stream": 1,
+            "vector_pairs": [
+                {
+                    "vector1": [
+                        788,
+                        229,
+                        395,
+                        395
+                    ],
+                    "vector2": [
+                        790,
+                        233,
+                        406,
+                        406
+                    ]
+                }
+            ]
+        },
+        {
+            "time_stamp": 3.2,
+            "next_stream": 3,
+            "vector_pairs": [
+                {
+                    "vector1": [
+                        1323,
+                        484,
+                        78,
+                        78
+                    ],
+                    "vector2": [
+                        1324,
+                        475,
+                        76,
+                        76
+                    ]
+                }
+            ]
+        },
+        {
+            "time_stamp": 4.4,
+            "next_stream": 2,
+            "vector_pairs": [
+                {
+                    "vector1": [
+                        727,
+                        203,
+                        381,
+                        381
+                    ],
+                    "vector2": [
+                        741,
+                        236,
+                        359,
+                        359
+                    ]
+                }
+            ]
+        }
+    ],
+    "scene_list": [
+        [
+            100,
+            500,
+            1000,
+            1500
+        ],
+        [
+            200,
+            500,
+            1500,
+            3000
+        ],
+        [
+            100,
+            510,
+            1000,
+            1500
+        ],
+        [
+            400,
+            500,
+            1000,
+            1500
+        ],
+        [
+            150,
+            500,
+            1000,
+            1500
+        ],
+        [
+            800,
+            500,
+            1000,
+            1500
+        ]
+    ]
+}
