@@ -3,10 +3,6 @@ import numpy as np
 import os
 from insightface.app import FaceAnalysis
 import json
-import random
-from moviepy.editor import VideoFileClip, concatenate_videoclips
-from math import radians, degrees, sin, cos, acos
-from sympy import symbols, Eq, solve
 
 
 def process_video(video_path):
@@ -19,7 +15,6 @@ def process_video(video_path):
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    center_x, center_y = width // 2, height // 2
     fps = cap.get(cv2.CAP_PROP_FPS)
     is_4k = width >= 1080 and height >= 1080
     display_scale_factor = 0.5 if is_4k else 1
@@ -57,13 +52,10 @@ def process_video(video_path):
         if frame_count % 5 == 0:
             faces = app.get(frame)
             current_frame_positions = []
-            max_area = 0
 
             for face in faces:
                 bbox = face["bbox"].astype(int)
                 x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-                area = w * h
-                distance_to_center = np.sqrt((center_x - x) ** 2 + (center_y - y) ** 2)
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
                 if "landmark_2d_106" in face:
@@ -74,11 +66,9 @@ def process_video(video_path):
                             frame, tuple(point), 3, (200, 160, 75), 1, cv2.LINE_AA
                         )
 
-                    if distance_to_center < width * 0.25 and area > max_area:
-                        max_area = area
-                        current_frame_positions.append((x, y, w, h))
-                        current_frame_eye_data.append((lmk[35], lmk[93]))
-                        cv2.line(frame, tuple(lmk[35]), tuple(lmk[93]), (255, 0, 0), 2)
+                    current_frame_positions.append((x, y, w, h))
+                    current_frame_eye_data.append((lmk[35], lmk[93]))
+                    cv2.line(frame, tuple(lmk[35]), tuple(lmk[93]), (255, 0, 0), 2)
 
             face_positions.append(current_frame_positions)
             eye_endpoint.append(current_frame_eye_data)
