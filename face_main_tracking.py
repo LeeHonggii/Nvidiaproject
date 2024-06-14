@@ -35,7 +35,8 @@ def process_video(video_path):
     face_recognitions = []
     eye_endpoint = []
 
-    prev_bbox = None
+    LARGE_FACE_AREA = 40000  # 큰 얼굴 면적
+    MIN_FACE_AREA = 10000  # 최소 얼굴 면적
 
     while True:
         ret, frame = cap.read()
@@ -44,43 +45,63 @@ def process_video(video_path):
 
         frame_count += 1
         best_face = None
-        min_distance = float("inf")
-        min_x_distance = float("inf")
-
+        min_distance_x = float("inf")
+        min_distance_y = float("inf")
+        # TODO : CHANGE the algorhythm of filtering faces
         if frame_count % 5 == 0:  # Process every 5th frame
             faces = app.get(frame)
-            if prev_bbox is not None:
-                prev_x, prev_y, prev_w, prev_h = prev_bbox
 
+            # Step 1: Select face with area >= LARGE_FACE_AREA if exists
             for face in faces:
                 bbox = face["bbox"].astype(int)
                 x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-                face_center_x = x + w / 2
-                face_center_y = y + h / 2
+                face_area = w * h
 
-                x_distance_to_center = abs(face_center_x - width / 2)
-
-                if prev_bbox is not None:
-                    distance = np.sqrt(
-                        (face_center_x - (prev_x + prev_w / 2)) ** 2
-                        + (face_center_y - (prev_y + prev_h / 2)) ** 2
-                    )
-                else:
-                    distance = np.sqrt(
-                        (face_center_x - width / 2) ** 2
-                        + (face_center_y - height / 2) ** 2
-                    )
-
-                if x_distance_to_center < min_x_distance or distance < min_distance:
-                    min_x_distance = x_distance_to_center
-                    min_distance = distance
+                if face_area >= LARGE_FACE_AREA:
                     best_face = face
+                    break
+
+            # Step 2: If no face with LARGE_FACE_AREA, find face closest to the center in x-direction
+            if best_face is None:
+                for face in faces:
+                    bbox = face["bbox"].astype(int)
+                    x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
+                    face_area = w * h
+
+                    if face_area < MIN_FACE_AREA:
+                        continue  # Skip faces smaller than the minimum face area
+
+                    face_center_x = x + w / 2
+                    distance_x = abs(face_center_x - width / 2)
+
+                    if distance_x < min_distance_x:
+                        min_distance_x = distance_x
+                        best_face_x = face
+
+                # Step 3: From the x-closest faces, find face closest to the center in y-direction
+                for face in faces:
+                    bbox = face["bbox"].astype(int)
+                    x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
+                    face_area = w * h
+
+                    if face_area < MIN_FACE_AREA:
+                        continue  # Skip faces smaller than the minimum face area
+
+                    face_center_x = x + w / 2
+                    face_center_y = y + h / 2
+                    distance_x = abs(face_center_x - width / 2)
+
+                    if distance_x == min_distance_x:
+                        distance_y = abs(face_center_y - height / 2)
+
+                        if distance_y < min_distance_y:
+                            min_distance_y = distance_y
+                            best_face = face
 
             if best_face:
                 bbox = best_face["bbox"].astype(int)
                 x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
                 current_frame_positions = [(x, y, w, h)]
-                prev_bbox = (x, y, w, h)
 
                 if "landmark_2d_106" in best_face:
                     lmk = best_face["landmark_2d_106"]
@@ -221,7 +242,7 @@ def calculate_cosine_similarity(v1, v2):
     return dot_product / (norm_v1 * norm_v2)
 
 
-def find_matching_faces(csv_files, min_frame_interval=80):
+def find_matching_faces(csv_files, min_frame_interval=10):
     all_face_positions = []
     all_eye_endpoints = []
     for csv_file in csv_files:
@@ -244,25 +265,37 @@ def find_matching_faces(csv_files, min_frame_interval=80):
         if not all(frame_eyes):
             continue  # Skip frames without valid eye endpoint data
 
-        for i in range(len(frame_faces)):
-            for j in range(i + 1, len(frame_faces)):
-                for face1, face2 in zip(frame_faces[i], frame_faces[j]):
-                    if frame_eyes[i] and frame_eyes[j]:
-                        x1, y1, w1, h1 = face1
-                        x2, y2, w2, h2 = face2
-                        iou_score = intersection_over_union(
-                            x1, y1, w1, h1, x2, y2, w2, h2
-                        )
-                        if iou_score > 0.9:
-                            current_frame = frame_index * 5
+        current_frame = frame_index * 5
 
-                            # Check if the current frame is sufficiently far from the last matched frame
-                            if current_frame - last_matched_frame >= min_frame_interval:
-                                matched_faces.append((current_frame, i, j))
-                                last_matched_frame = current_frame
-                                print(
-                                    f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}"
-                                )
+        # Check if the current frame is sufficiently far from the last matched frame
+        if current_frame - last_matched_frame < min_frame_interval:
+            continue
+
+        face_pairs = []
+        for i in range(len(frame_faces)):
+            for face1 in frame_faces[i]:
+                face_pairs.append((i, face1))
+
+        face_pairs_count = len(face_pairs)
+        for i in range(face_pairs_count):
+            for j in range(i + 1, face_pairs_count):
+                index1, face1 = face_pairs[i]
+                index2, face2 = face_pairs[j]
+
+                if frame_eyes[index1] and frame_eyes[index2]:
+                    x1, y1, w1, h1 = face1
+                    x2, y2, w2, h2 = face2
+                    iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
+                    if iou_score > 0.9:
+                        matched_faces.append((current_frame, index1, index2))
+                        last_matched_frame = current_frame
+                        print(
+                            f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}"
+                        )
+                        break  # Exit loop once a match is found in this frame
+            else:
+                continue
+            break
 
     return matched_faces
 
@@ -299,6 +332,7 @@ def create_json_structure(
     }
 
     # Define streams
+    # TODO: REMOVE folder_path from vp
     streams = [{"file": vp, "start": 0, "end": 0} for vp in video_paths]
 
     time_conversion = 1 / fps[0]
@@ -421,20 +455,20 @@ if __name__ == "__main__":
     ]
     video_paths = [os.path.join(folder_path, video_file) for video_file in video_files]
     csv_files = []
-    csv_files = [
-        "output_ive_baddie_1.csv",
-        "output_ive_baddie_2.csv",
-        "output_ive_baddie_3.csv",
-        "output_ive_baddie_4.csv",
-        "output_ive_baddie_5.csv",
-        "output_ive_baddie_6.csv",
-    ]
+    # csv_files = [
+    #     "output_ive_baddie_1.csv",
+    #     "output_ive_baddie_2.csv",
+    #     "output_ive_baddie_3.csv",
+    #     "output_ive_baddie_4.csv",
+    #     "output_ive_baddie_5.csv",
+    #     "output_ive_baddie_6.csv",
+    # ]
     fps_list = []
-    fps_list = [29.97002997002997]
+    # fps_list = [29.97002997002997]
     total_frames_list = []
-    total_frames_list = [4817]
+    # total_frames_list = [4817]
     duration_list = []
-    duration_list = [160.72723333333334]
+    # duration_list = [160.72723333333334]
 
     for video_path in video_paths:
         (
