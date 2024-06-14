@@ -171,6 +171,17 @@ def calculate_similarities(csv_files, width, height, threshold, position_thresho
     # 진행 상황 표시
     progress = tqdm(total=total_comparisons, desc="Comparing frames")
 
+    for frame_num in all_frame_numbers:
+    for i, data1 in enumerate(data_list):
+        frame1_rows = data1[data1.iloc[:, 0] == frame_num].to_numpy()
+        for j, data2 in enumerate(data_list):
+            if i >= j:
+                continue
+
+            frame2_rows = data2[data2.iloc[:, 0] == frame_num].to_numpy()
+
+
+
     # 유사 프레임 계산
     for frame_num in all_frame_numbers:
         for i, data1 in enumerate(data_list):
@@ -187,9 +198,15 @@ def calculate_similarities(csv_files, width, height, threshold, position_thresho
 
                         if similarity < threshold:
                             key = (frame_num, csv_files[i], csv_files[j])
+                            #반전키
+                            reverse_key = (frame_num, csv_files[j], csv_files[i])
+
                             if key not in similar_frames:
                                 similar_frames[key] = []
+                            if reverse_key not in similar_frames:
+                                similar_frames[reverse_key] = []
                             similar_frames[key].append((similarity, position_diff, size_diff))
+                            similar_frames[reverse_key].append((similarity, position_diff, size_diff))
 
                     progress.update(1)
 
