@@ -4,6 +4,7 @@ import os
 from insightface.app import FaceAnalysis
 import json
 import csv
+from itertools import combinations
 
 
 def process_video(video_path):
@@ -120,7 +121,15 @@ def process_video(video_path):
             for (x, y, w, h), (eye_point1, eye_point2) in zip(positions, eye_points):
                 csvwriter.writerow([i * 5, x, y, w, h, eye_point1, eye_point2])
 
-    return face_positions, eye_endpoint, face_recognitions, fps, total_frames, duration
+    return (
+        face_positions,
+        eye_endpoint,
+        face_recognitions,
+        fps,
+        total_frames,
+        duration,
+        output_csv,
+    )
 
 
 def load_csv_data(file_path):
@@ -212,65 +221,63 @@ def calculate_cosine_similarity(v1, v2):
     return dot_product / (norm_v1 * norm_v2)
 
 
-def find_matching_faces(csv_file1, csv_file2):
-    face_positions1, eye_endpoints1 = load_csv_data(csv_file1)
-    face_positions2, eye_endpoints2 = load_csv_data(csv_file2)
+def find_matching_faces(csv_files):
+    all_face_positions = []
+    all_eye_endpoints = []
+    for csv_file in csv_files:
+        face_positions, eye_endpoints = load_csv_data(csv_file)
+        all_face_positions.append(face_positions)
+        all_eye_endpoints.append(eye_endpoints)
+
     matched_faces = []
-    min_length = min(len(face_positions1), len(face_positions2))
+    min_length = min(len(positions) for positions in all_face_positions)
 
     for frame_index in range(min_length):
-        frame_faces1 = face_positions1[frame_index]
-        frame_faces2 = face_positions2[frame_index]
+        frame_faces = [
+            face_positions[frame_index] for face_positions in all_face_positions
+        ]
+        frame_eyes = [eye_endpoints[frame_index] for eye_endpoints in all_eye_endpoints]
 
-        # Ensure there are eye endpoints for both videos at this frame index
-        if not eye_endpoints1[frame_index] or not eye_endpoints2[frame_index]:
-            print(f"Skipping frame {frame_index*5 + 1} due to missing eye data.")
+        if not all(frame_eyes):
             continue  # Skip frames without valid eye endpoint data
 
-        for i, face1 in enumerate(frame_faces1):
-            for j, face2 in enumerate(frame_faces2):
-                if i < len(eye_endpoints1[frame_index]) and j < len(
-                    eye_endpoints2[frame_index]
-                ):
-                    x1, y1, w1, h1 = face1
-                    x2, y2, w2, h2 = face2
-                    iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
-                    if iou_score > 0.6:
-
-                        current_frame = (frame_index) * 5
-                        matched_faces.append(current_frame)
-                        print(
-                            f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}"
+        for i in range(len(frame_faces)):
+            for j in range(i + 1, len(frame_faces)):
+                for face1, face2 in zip(frame_faces[i], frame_faces[j]):
+                    if frame_eyes[i] and frame_eyes[j]:
+                        x1, y1, w1, h1 = face1
+                        x2, y2, w2, h2 = face2
+                        iou_score = intersection_over_union(
+                            x1, y1, w1, h1, x2, y2, w2, h2
                         )
+                        if iou_score > 0.6:
+                            current_frame = frame_index * 5
+                            matched_faces.append((current_frame, i, j))
+                            print(
+                                f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}"
+                            )
 
     return matched_faces
 
 
-def recognition():
-    pass
-
-
 def create_json_structure(
-    matched_faces,
-    csv_file1,
-    csv_file2,
-    video_paths,
-    folder_path,
-    fps1,
-    total_frames1,
-    duration1,
+    matched_faces, csv_files, video_paths, folder_path, fps, total_frames, duration
 ):
-    face_positions1, eye_endpoints1 = load_csv_data(csv_file1)
-    face_positions2, eye_endpoints2 = load_csv_data(csv_file2)
+    all_face_positions = []
+    all_eye_endpoints = []
+    for csv_file in csv_files:
+        face_positions, eye_endpoints = load_csv_data(csv_file)
+        all_face_positions.append(face_positions)
+        all_eye_endpoints.append(eye_endpoints)
 
     # Define meta information
     meta_info = {
         "num_stream": len(video_paths),
         "metric": "time",
-        "frame_rate": fps1,
-        "num_frames": total_frames1,
+        "frame_rate": fps[0],
+        "num_frames": total_frames[0],
         "init_time": 0,
-        "duration": duration1,
+        "duration": duration[0],
         "num_vector_pair": 3,
         "num_cross": len(matched_faces),
         "first_stream": 1,
@@ -280,26 +287,26 @@ def create_json_structure(
     # Define streams
     streams = [{"file": vp, "start": 0, "end": 0} for vp in video_paths]
 
-    time_conversion = 1 / fps1
+    time_conversion = 1 / fps[0]
 
     next_stream = 0
 
     # Define cross_points
     cross_points = []
 
-    for idx, frame_id in enumerate(matched_faces):
+    for idx, (frame_id, i, j) in enumerate(matched_faces):
         index1 = frame_id // 5
-        index2 = index1  # Assuming the frames are synchronized in both videos
-
-        if 0 <= index1 < len(eye_endpoints1) and 0 <= index2 < len(eye_endpoints2):
-            if eye_endpoints1[index1] and eye_endpoints2[index2]:
+        if 0 <= index1 < len(all_eye_endpoints[i]) and 0 <= index1 < len(
+            all_eye_endpoints[j]
+        ):
+            if all_eye_endpoints[i][index1] and all_eye_endpoints[j][index1]:
                 vector_1 = (
-                    np.array(eye_endpoints1[index1][0][0]).tolist()
-                    + np.array(eye_endpoints1[index1][0][1]).tolist()
+                    np.array(all_eye_endpoints[i][index1][0][0]).tolist()
+                    + np.array(all_eye_endpoints[i][index1][0][1]).tolist()
                 )
                 vector_2 = (
-                    np.array(eye_endpoints2[index2][0][0]).tolist()
-                    + np.array(eye_endpoints2[index2][0][1]).tolist()
+                    np.array(all_eye_endpoints[j][index1][0][0]).tolist()
+                    + np.array(all_eye_endpoints[j][index1][0][1]).tolist()
                 )
 
                 cross_point = {
@@ -311,12 +318,8 @@ def create_json_structure(
                 next_stream = (next_stream + 1) % len(video_paths)
             else:
                 print(
-                    f"No valid eye endpoint data for frame_id {frame_id} at indices index1={index1}, index2={index2}"
+                    f"No valid eye endpoint data for frame_id {frame_id} at index1={index1}"
                 )
-        else:
-            print(
-                f"Index out of range for frame_id {frame_id}: index1={index1}, index2={index2}, Lengths: {len(eye_endpoints1)}, {len(eye_endpoints2)}"
-            )
 
     # Define scene_list for each stream
     scene_list = [
@@ -346,56 +349,51 @@ def write_json_file(parameter, output_file):
 
 if __name__ == "__main__":
     folder_path = "./data/"  # Folder path for storing videos
-    video_1 = "pose_sync_ive_baddie_1.mp4"
-    video_2 = "pose_sync_ive_baddie_2.mp4"
-    video_path1 = folder_path + video_1
-    video_path2 = folder_path + video_2
-    csv_file1 = f"output_{os.path.splitext(os.path.basename(video_path1))[0]}.csv"
-    csv_file2 = f"output_{os.path.splitext(os.path.basename(video_path2))[0]}.csv"
-
-    # (
-    #     face_positions1,
-    #     eye_endpoint1,
-    #     face_recognitions1,
-    #     fps1,
-    #     total_frames1,
-    #     duration1,
-    # ) = process_video(video_path1)
-    # (
-    #     face_positions2,
-    #     eye_endpoint2,
-    #     face_recognitions2,
-    #     fps2,
-    #     total_frames2,
-    #     duration2,
-    # ) = process_video(video_path2)
-
-    matched_faces = find_matching_faces(csv_file1, csv_file2)
-    print(matched_faces)
-
-    video_paths = [
-        video_1,
-        video_2,
+    video_files = [
+        "ive_baddie_1.mp4",
+        "ive_baddie_2.mp4",
+        "ive_baddie_3.mp4",
+        "ive_baddie_4.mp4",
+        "ive_baddie_5.mp4",
+        "ive_baddie_6.mp4",
     ]
+    video_paths = [os.path.join(folder_path, video_file) for video_file in video_files]
+    csv_files = []
+    fps_list = []
+    total_frames_list = []
+    duration_list = []
+
+    for video_path in video_paths:
+        (
+            face_positions,
+            eye_endpoint,
+            face_recognitions,
+            fps,
+            total_frames,
+            duration,
+            output_csv,
+        ) = process_video(video_path)
+        csv_files.append(output_csv)
+        fps_list.append(fps)
+        total_frames_list.append(total_frames)
+        duration_list.append(duration)
+
+    matched_faces = find_matching_faces(csv_files)
+    print(matched_faces)
 
     # Create the JSON structure
     json_structure = create_json_structure(
         matched_faces,
-        csv_file1,
-        csv_file2,
+        csv_files,
         video_paths,
         folder_path,
-        fps1=29.97002997002997,
-        total_frames1=774,
-        duration1=25.8258,
+        fps_list,
+        total_frames_list,
+        duration_list,
     )
 
     # Write the JSON structure to a file
     output_file = "output.json"
     write_json_file(json_structure, output_file)
-    # if len(eye_endpoint1) > 107:
-    #     print(eye_endpoint1[107])
-    # if len(eye_endpoint2) > 107:
-    #     print(eye_endpoint2[107])
 
     print(f"JSON file '{output_file}' has been written with the video analysis data.")
