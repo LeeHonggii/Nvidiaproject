@@ -1,9 +1,6 @@
-import cv2
-import csv
 import os
 from tqdm import tqdm
-import pandas as pd
-from pose.pose import process_videos
+from video_processor import process_videos
 from pose.similarity import calculate_similarities
 
 # 하이퍼파라미터 설정
@@ -39,7 +36,8 @@ if __name__ == "__main__":
     video_file_mapping = {csv: video for video, csv in csv_video_mapping.items()}
 
     # 유사도 계산 수행
-    results, max_transformation_order = calculate_similarities(
-        csv_files, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
+    results, max_transformation_order, verified_matches = calculate_similarities(
+        csv_files, video_files, video_file_mapping, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
     )
     print("최대 변환 순서:", max_transformation_order)
+    print("검증된 매칭 결과:", verified_matches)
