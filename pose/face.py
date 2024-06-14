@@ -2,10 +2,9 @@ import cv2
 import numpy as np
 import os
 from insightface.app import FaceAnalysis
-from concurrent.futures import ThreadPoolExecutor
 
 
-def init_face_analysis():
+def initialize_face_analysis():
     app = FaceAnalysis(
         allowed_modules=["detection", "landmark_2d_106"],
         providers=["CUDAExecutionProvider"],
@@ -14,107 +13,140 @@ def init_face_analysis():
     return app
 
 
-def process_frame(app, video_path, frame_number):
+def open_video(video_path):
+    if not os.path.exists(video_path):
+        raise FileNotFoundError(f"No file found at {video_path}")
+
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise Exception("Failed to open video file.")
+    return cap
 
-    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-    ret, frame = cap.read()
-    cap.release()
 
-    if not ret:
-        return frame_number, None, None
+def get_video_properties(cap):
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = total_frames / fps if fps else 0
+    return width, height, fps, total_frames, duration
 
-    faces = app.get(frame)
+
+def process_frame(frame, app, width, height, prev_bbox):
     best_face = None
+    min_distance = float("inf")
     min_x_distance = float("inf")
 
-    width = frame.shape[1]
-    height = frame.shape[0]
-
+    faces = app.get(frame)
     for face in faces:
         bbox = face["bbox"].astype(int)
         x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
         face_center_x = x + w / 2
+        face_center_y = y + h / 2
+
         x_distance_to_center = abs(face_center_x - width / 2)
 
-        if x_distance_to_center < min_x_distance:
+        if prev_bbox is not None:
+            prev_x, prev_y, prev_w, prev_h = prev_bbox
+            distance = np.sqrt(
+                (face_center_x - (prev_x + prev_w / 2)) ** 2
+                + (face_center_y - (prev_y + prev_h / 2)) ** 2
+            )
+        else:
+            distance = np.sqrt(
+                (face_center_x - width / 2) ** 2
+                + (face_center_y - height / 2) ** 2
+            )
+
+        if x_distance_to_center < min_x_distance or distance < min_distance:
             min_x_distance = x_distance_to_center
+            min_distance = distance
             best_face = face
 
-    if best_face:
-        bbox = best_face["bbox"].astype(int)
-        x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-        current_frame_positions = [(x, y, w, h)]
-
-        if "landmark_2d_106" in best_face:
-            lmk = best_face["landmark_2d_106"]
-            lmk = np.round(lmk).astype(np.int64)
-            eye_point1 = tuple(lmk[35])
-            eye_point2 = tuple(lmk[93])
-            current_frame_eye_data = [(eye_point1, eye_point2)]
-
-        return frame_number, current_frame_positions, current_frame_eye_data
-
-    return frame_number, None, None
+    return best_face
 
 
-def process_specific_frames(video_path, frame_numbers, app):
-    with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(process_frame, app, video_path, frame) for frame in frame_numbers]
-        results = [future.result() for future in futures]
+def draw_landmarks_and_eye_line(frame, best_face):
+    lmk = best_face["landmark_2d_106"]
+    lmk = np.round(lmk).astype(np.int64)
+    eye_point1 = tuple(lmk[35])
+    eye_point2 = tuple(lmk[93])
 
-    face_positions = [result[1] for result in results if result[1] is not None]
-    eye_endpoints = [result[2] for result in results if result[2] is not None]
+    for point in lmk:
+        cv2.circle(frame, tuple(point), 3, (200, 160, 75), 1, cv2.LINE_AA)
+    cv2.line(frame, eye_point1, eye_point2, (255, 0, 0), 2)
 
-    return face_positions, eye_endpoints
-
-
-def intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2):
-    x1_max = x1 + w1
-    y1_max = y1 + h1
-    x2_max = x2 + w2
-    y2_max = y2 + h2
-
-    inter_x1 = max(x1, x2)
-    inter_y1 = max(y1, y2)
-    inter_x2 = min(x1_max, x2_max)
-    inter_y2 = min(y1_max, y2_max)
-    inter_w = max(0, inter_x2 - inter_x1)
-    inter_h = max(0, inter_y2 - inter_y1)
-
-    inter_area = inter_w * inter_h
-    rect1_area = w1 * h1
-    rect2_area = w2 * h2
-    union_area = rect1_area + rect2_area - inter_area
-
-    iou = inter_area / union_area
-
-    return iou
+    return lmk.tolist(), (eye_point1, eye_point2)
 
 
-def find_matching_faces(face_positions1, eye_endpoints1, face_positions2, eye_endpoints2):
-    matched_faces = []
-    min_length = min(len(face_positions1), len(face_positions2))
+def calculate_cosine_similarity(v1, v2):
+    v1 = np.asarray(v1).flatten()
+    v2 = np.asarray(v2).flatten()
 
-    for frame_index in range(min_length):
-        frame_faces1 = face_positions1[frame_index]
-        frame_faces2 = face_positions2[frame_index]
+    if np.all(v1 == 0) or np.all(v2 == 0):
+        return 0.0  # Avoid division by zero
 
-        if not eye_endpoints1[frame_index] or not eye_endpoints2[frame_index]:
-            print(f"Skipping frame {frame_index + 1} due to missing eye data.")
-            continue
+    dot_product = np.dot(v1, v2)
+    norm_v1 = np.linalg.norm(v1)
+    norm_v2 = np.linalg.norm(v2)
 
-        for i, face1 in enumerate(frame_faces1):
-            for j, face2 in enumerate(frame_faces2):
-                if i < len(eye_endpoints1[frame_index]) and j < len(eye_endpoints2[frame_index]):
-                    x1, y1, w1, h1 = face1
-                    x2, y2, w2, h2 = face2
-                    iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
-                    if iou_score > 0.6:
-                        current_frame = frame_index + 1
-                        matched_faces.append(current_frame)
-                        print(f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}")
+    if norm_v1 == 0 or norm_v2 == 0:
+        return 0.0  # Avoid division by zero if norm is zero
 
-    return matched_faces
+    return dot_product / (norm_v1 * norm_v2)
+
+
+def process_video_frames(video_path, frame_numbers):
+    cap = open_video(video_path)
+    width, height, fps, total_frames, duration = get_video_properties(cap)
+    app = initialize_face_analysis()
+
+    window_name = "Video"
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+
+    frames_data = []
+    prev_bbox = None
+
+    for frame_number in frame_numbers:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        best_face = process_frame(frame, app, width, height, prev_bbox)
+        if best_face:
+            bbox = best_face["bbox"].astype(int)
+            x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
+            prev_bbox = (x, y, w, h)
+
+            if "landmark_2d_106" in best_face:
+                lmk, eye_points = draw_landmarks_and_eye_line(frame, best_face)
+                frames_data.append({
+                    "frame_number": frame_number,
+                    "bbox": (x, y, w, h),
+                    "landmarks": lmk,
+                    "eye_points": eye_points
+                })
+
+            cv2.imshow(window_name, frame)
+
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+    return frames_data
+
+
+def compare_faces(frames_data):
+    if len(frames_data) != 2:
+        raise ValueError("Exactly two frames must be processed for comparison")
+
+    landmarks1 = frames_data[0]["landmarks"]
+    landmarks2 = frames_data[1]["landmarks"]
+
+    similarity = calculate_cosine_similarity(landmarks1, landmarks2)
+    threshold = 0.8  # Example threshold for determining if faces match
+
+    return similarity >= threshold, similarity

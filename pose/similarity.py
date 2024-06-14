@@ -3,10 +3,10 @@ from scipy.spatial.distance import euclidean, cosine
 from fastdtw import fastdtw
 import pandas as pd
 from tqdm import tqdm
-from face import init_face_analysis, process_specific_frames, find_matching_faces
+from face import initialize_face_analysis, process_video_frames, compare_faces
 
 def calculate_similarities(csv_files, video_files, video_file_mapping, width, height, threshold, position_threshold, size_threshold, avg_similarity_threshold):
-    app = init_face_analysis()
+    app = initialize_face_analysis()
 
     def get_keypoints(row, start_index, count):
         keypoints = []
@@ -190,8 +190,6 @@ def calculate_similarities(csv_files, video_files, video_file_mapping, width, he
 
     progress.close()
 
-    print(similar_frames)
-
     results = {}
 
     for (frame_num, csv_file1, csv_file2), values in similar_frames.items():
@@ -223,13 +221,13 @@ def calculate_similarities(csv_files, video_files, video_file_mapping, width, he
 
             frame_numbers = [frame_num]
 
-            face_positions1, eye_endpoints1 = process_specific_frames(video1, frame_numbers, app)
-            face_positions2, eye_endpoints2 = process_specific_frames(video2, frame_numbers, app)
+            frames_data1 = process_video_frames(video1, frame_numbers)
+            frames_data2 = process_video_frames(video2, frame_numbers)
 
-            face_verified = find_matching_faces(face_positions1, eye_endpoints1, face_positions2, eye_endpoints2)
-
-            if face_verified:
-                verified_matches.append((frame_num, csv_file1, csv_file2, similarity))
+            if len(frames_data1) == 1 and len(frames_data2) == 1:
+                match, _ = compare_faces([frames_data1[0], frames_data2[0]])
+                if match:
+                    verified_matches.append((frame_num, csv_file1, csv_file2, similarity))
 
     frame_similarities = get_similar_frames_dict({frame: [{"similar_files": (csv1, csv2)} for frame, csv1, csv2, _ in verified_matches]})
 
