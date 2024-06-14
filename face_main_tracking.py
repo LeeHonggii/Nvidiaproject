@@ -221,7 +221,7 @@ def calculate_cosine_similarity(v1, v2):
     return dot_product / (norm_v1 * norm_v2)
 
 
-def find_matching_faces(csv_files):
+def find_matching_faces(csv_files, min_frame_interval=80):
     all_face_positions = []
     all_eye_endpoints = []
     for csv_file in csv_files:
@@ -231,6 +231,9 @@ def find_matching_faces(csv_files):
 
     matched_faces = []
     min_length = min(len(positions) for positions in all_face_positions)
+    last_matched_frame = (
+        -min_frame_interval
+    )  # Initialize to a value outside possible frame index
 
     for frame_index in range(min_length):
         frame_faces = [
@@ -250,18 +253,29 @@ def find_matching_faces(csv_files):
                         iou_score = intersection_over_union(
                             x1, y1, w1, h1, x2, y2, w2, h2
                         )
-                        if iou_score > 0.6:
+                        if iou_score > 0.9:
                             current_frame = frame_index * 5
-                            matched_faces.append((current_frame, i, j))
-                            print(
-                                f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}"
-                            )
+
+                            # Check if the current frame is sufficiently far from the last matched frame
+                            if current_frame - last_matched_frame >= min_frame_interval:
+                                matched_faces.append((current_frame, i, j))
+                                last_matched_frame = current_frame
+                                print(
+                                    f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}"
+                                )
 
     return matched_faces
 
 
 def create_json_structure(
-    matched_faces, csv_files, video_paths, folder_path, fps, total_frames, duration
+    matched_faces,
+    csv_files,
+    video_paths,
+    folder_path,
+    fps,
+    total_frames,
+    duration,
+    scene_list,
 ):
     all_face_positions = []
     all_eye_endpoints = []
@@ -321,16 +335,6 @@ def create_json_structure(
                     f"No valid eye endpoint data for frame_id {frame_id} at index1={index1}"
                 )
 
-    # Define scene_list for each stream
-    scene_list = [
-        [100, 500, 1000, 1500],
-        [200, 500, 1500, 3000],
-        [100, 510, 1000, 1500],
-        [400, 500, 1000, 1500],
-        [150, 500, 1000, 1500],
-        [800, 500, 1000, 1500],
-    ]
-
     # Complete parameter dictionary
     parameter = {
         "meta_info": meta_info,
@@ -347,6 +351,64 @@ def write_json_file(parameter, output_file):
         json.dump(parameter, f, indent=4)
 
 
+def frame_difference_detection(
+    video_path, threshold=60, resize_factor=1, aggregation_window=18
+):
+    frame_list = []
+    cap = cv2.VideoCapture(video_path)
+    transition_count = 0
+    total_frames = 0
+    added_frames = 0  # To keep track of how many times we've added an extra frame
+
+    ret, frame1 = cap.read()
+    if not ret:
+        print("Error: Failed to read video file.")
+        return 0
+
+    # Resize frame to speed up processing
+    frame1 = cv2.resize(frame1, (0, 0), fx=resize_factor, fy=resize_factor)
+    prev_gray = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+    last_cut_frame = (
+        -aggregation_window
+    )  # Initialize to a value outside possible frame index
+
+    while True:
+        ret, frame2 = cap.read()
+        if not ret:
+            break
+
+        frame2 = cv2.resize(frame2, (0, 0), fx=resize_factor, fy=resize_factor)
+        total_frames += 1
+        gray = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+
+        # Compute the absolute difference between the current frame and the previous frame
+        frame_diff = cv2.absdiff(prev_gray, gray)
+        mean_diff = np.mean(frame_diff)
+
+        # Correct frame count at every 1000th frame
+        if total_frames % 1000 == 0 and total_frames // 1000 > added_frames:
+            total_frames += 1
+            added_frames += 1  # Update the counter for added frames
+
+        # If the average intensity difference exceeds the threshold, it's likely a cut
+        if mean_diff > threshold:
+            # Aggregate close detections as a single cut
+            if total_frames - last_cut_frame > aggregation_window:
+                transition_count += 1
+                last_cut_frame = total_frames
+
+                # print(
+                #     f"Cut detected at frame {total_frames} with average frame difference {mean_diff}"
+                # )
+
+                frame_list.append(total_frames)
+                print((total_frames) * (1 / 29.97))
+        prev_gray = gray
+
+    cap.release()
+    return frame_list
+
+
 if __name__ == "__main__":
     folder_path = "./data/"  # Folder path for storing videos
     video_files = [
@@ -359,9 +421,20 @@ if __name__ == "__main__":
     ]
     video_paths = [os.path.join(folder_path, video_file) for video_file in video_files]
     csv_files = []
+    csv_files = [
+        "output_ive_baddie_1.csv",
+        "output_ive_baddie_2.csv",
+        "output_ive_baddie_3.csv",
+        "output_ive_baddie_4.csv",
+        "output_ive_baddie_5.csv",
+        "output_ive_baddie_6.csv",
+    ]
     fps_list = []
+    fps_list = [29.97002997002997]
     total_frames_list = []
+    total_frames_list = [4817]
     duration_list = []
+    duration_list = [160.72723333333334]
 
     for video_path in video_paths:
         (
@@ -381,6 +454,13 @@ if __name__ == "__main__":
     matched_faces = find_matching_faces(csv_files)
     print(matched_faces)
 
+    scene_list = []
+
+    for i in range(0, len(video_files)):
+        frame_detected_list = []
+        frame_detected_list = frame_difference_detection(video_paths[i])
+        scene_list.append(frame_detected_list)
+
     # Create the JSON structure
     json_structure = create_json_structure(
         matched_faces,
@@ -390,6 +470,7 @@ if __name__ == "__main__":
         fps_list,
         total_frames_list,
         duration_list,
+        scene_list,
     )
 
     # Write the JSON structure to a file
