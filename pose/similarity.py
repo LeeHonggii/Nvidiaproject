@@ -3,8 +3,11 @@ from scipy.spatial.distance import euclidean, cosine
 from fastdtw import fastdtw
 import pandas as pd
 from tqdm import tqdm
+from face import init_face_analysis, process_specific_frames, find_matching_faces
 
-def calculate_similarities(csv_files, width, height, threshold, position_threshold, size_threshold, avg_similarity_threshold):
+def calculate_similarities(csv_files, video_files, video_file_mapping, width, height, threshold, position_threshold, size_threshold, avg_similarity_threshold):
+    app = init_face_analysis()
+
     def get_keypoints(row, start_index, count):
         keypoints = []
         for i in range(count):
@@ -58,7 +61,6 @@ def calculate_similarities(csv_files, width, height, threshold, position_thresho
         size1 = calculate_size(keypoints1)
         size2 = calculate_size(keypoints2)
 
-        # Normalize by video dimensions
         norm_centroid1 = (centroid1[0] / width, centroid1[1] / height)
         norm_centroid2 = (centroid2[0] / width, centroid2[1] / height)
 
@@ -82,12 +84,10 @@ def calculate_similarities(csv_files, width, height, threshold, position_thresho
         keypoints1 = face1 + body1 + leg1
         keypoints2 = face2 + body2 + leg2
 
-        is_similar, position_diff, size_diff = filter_by_position_and_size(keypoints1, keypoints2, width, height,
-                                                                           position_threshold, size_threshold)
+        is_similar, position_diff, size_diff = filter_by_position_and_size(keypoints1, keypoints2, width, height, position_threshold, size_threshold)
         if not is_similar:
-            return float('inf'), position_diff, size_diff  # Return a high distance if not similar in position/size
+            return float('inf'), position_diff, size_diff
 
-        # Calculate pose similarity if position and size are similar
         similarity = calculate_combined_similarity(row1, row2, width, height)
         return similarity, position_diff, size_diff
 
@@ -126,19 +126,16 @@ def calculate_similarities(csv_files, width, height, threshold, position_thresho
         return frame_similarities
 
     def find_max_transformation_order(frame_similarities, frame_count):
-        # 현재 프레임과 파일을 추적
         current_frame = 0
         current_file = None
         transformation_order = []
 
-        # 가능한 파일 목록
         files = list(frame_similarities.keys())
 
         while current_frame < frame_count:
             max_similar_frames = []
             max_file = None
 
-            # 현재 프레임에서 변환 가능한 모든 파일 중 가장 많은 변환을 제공하는 파일을 선택
             for file in files:
                 similar_frames = [frame for frame, pair in frame_similarities[file] if frame >= current_frame and (file != current_file)]
                 if len(similar_frames) > len(max_similar_frames):
@@ -146,32 +143,26 @@ def calculate_similarities(csv_files, width, height, threshold, position_thresho
                     max_file = file
 
             if not max_similar_frames:
-                break  # 변환 가능한 파일이 없으면 종료
+                break
 
             transformation_order.append((current_frame, max_file))
             current_file = max_file
-            current_frame = max_similar_frames[0] + 5  # 최소 5 프레임 후에 다시 변환 가능
+            current_frame = max_similar_frames[0] + 1
 
         return transformation_order
 
-    # 각 CSV 파일 데이터를 읽어들임
     data_list = [pd.read_csv(file) for file in csv_files]
 
-    # 유사한 프레임을 저장할 딕셔너리
     similar_frames = {}
 
-    # 모든 가능한 프레임 번호 가져오기
     all_frame_numbers = set()
     for data in data_list:
         all_frame_numbers.update(data.iloc[:, 0].unique())
 
-    # 총 작업량 계산
     total_comparisons = len(all_frame_numbers) * len(data_list) * (len(data_list) - 1) // 2
 
-    # 진행 상황 표시
     progress = tqdm(total=total_comparisons, desc="Comparing frames")
 
-    # 유사 프레임 계산
     for frame_num in all_frame_numbers:
         for i, data1 in enumerate(data_list):
             frame1_rows = data1[data1.iloc[:, 0] == frame_num].to_numpy()
@@ -187,15 +178,20 @@ def calculate_similarities(csv_files, width, height, threshold, position_thresho
 
                         if similarity < threshold:
                             key = (frame_num, csv_files[i], csv_files[j])
+                            reverse_key = (frame_num, csv_files[j], csv_files[i])
                             if key not in similar_frames:
                                 similar_frames[key] = []
+                            if reverse_key not in similar_frames:
+                                similar_frames[reverse_key] = []
                             similar_frames[key].append((similarity, position_diff, size_diff))
+                            similar_frames[reverse_key].append((similarity, position_diff, size_diff))
 
                     progress.update(1)
 
     progress.close()
 
-    # 결과를 변수로 저장
+    print(similar_frames)
+
     results = {}
 
     for (frame_num, csv_file1, csv_file2), values in similar_frames.items():
@@ -217,13 +213,28 @@ def calculate_similarities(csv_files, width, height, threshold, position_thresho
             "similar_person_count": len(values)
         })
 
-    # 유사한 프레임을 저장할 딕셔너리
-    frame_similarities = get_similar_frames_dict(results)
+    verified_matches = []
 
-    # 전체 프레임 수 계산
+    for (frame_num, csv_file1, csv_file2), values in similar_frames.items():
+        for value in values:
+            similarity, _, _ = value
+            video1 = video_file_mapping[csv_file1]
+            video2 = video_file_mapping[csv_file2]
+
+            frame_numbers = [frame_num]
+
+            face_positions1, eye_endpoints1 = process_specific_frames(video1, frame_numbers, app)
+            face_positions2, eye_endpoints2 = process_specific_frames(video2, frame_numbers, app)
+
+            face_verified = find_matching_faces(face_positions1, eye_endpoints1, face_positions2, eye_endpoints2)
+
+            if face_verified:
+                verified_matches.append((frame_num, csv_file1, csv_file2, similarity))
+
+    frame_similarities = get_similar_frames_dict({frame: [{"similar_files": (csv1, csv2)} for frame, csv1, csv2, _ in verified_matches]})
+
     frame_count = max(all_frame_numbers) + 1
 
-    # 최대 변환 순서를 찾기 위한 함수 호출
     max_transformation_order = find_max_transformation_order(frame_similarities, frame_count)
 
-    return results, max_transformation_order
+    return results, max_transformation_order, verified_matches
