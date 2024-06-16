@@ -5,7 +5,7 @@ from insightface.app import FaceAnalysis
 import json
 import csv
 from itertools import combinations
-
+from multiprocessing import Pool, cpu_count
 
 def process_video(video_path):
     if not os.path.exists(video_path):
@@ -443,6 +443,12 @@ def frame_difference_detection(
     return frame_list
 
 
+def process_video_multiprocessing(video_paths):
+    with Pool(cpu_count()) as pool:
+        results = pool.map(process_video, video_paths)
+    return results
+
+
 if __name__ == "__main__":
     folder_path = "./data/"  # Folder path for storing videos
     video_files = [
@@ -454,6 +460,8 @@ if __name__ == "__main__":
         "ive_baddie_6.mp4",
     ]
     video_paths = [os.path.join(folder_path, video_file) for video_file in video_files]
+
+    results = process_video_multiprocessing(video_paths)
     csv_files = []
     # csv_files = [
     #     "output_ive_baddie_1.csv",
