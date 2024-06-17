@@ -36,73 +36,81 @@ def process_video(video_path):
     face_positions = []
     face_recognitions = []
     eye_endpoint = []
-
-    last_landmarks = None
-    last_eye_points = None
+    frames_to_display = {}  # To keep landmark drawings on screen
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        if frame.shape[:2] != (height, width):
-            print(
-                f"Frame size mismatch: expected {(height, width)}, got {frame.shape[:2]}"
-            )
-            continue
-
         frame_count += 1
-        best_face = None
+        display_frame = frame.copy()  # Make a copy of the frame to draw updates
+
+        # Draw a circle at the center of the video
+        center_x = width // 2
+        center_y = height // 2
+        cv2.circle(display_frame, (center_x, center_y), 10, (0, 0, 255), -1)
 
         if frame_count % 5 == 0:  # Process every 5th frame
             faces = app.get(frame)
-            best_distance = float("inf")
+            best_face = None
             largest_area = 0
+            best_distance = float("inf")
 
             for face in faces:
                 bbox = face["bbox"].astype(int)
+                cv2.rectangle(
+                    display_frame,
+                    (bbox[0], bbox[1]),
+                    (bbox[2], bbox[3]),
+                    (0, 255, 0),
+                    2,
+                )  # Draw rectangle for all faces
+
                 x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
                 face_area = w * h
-
                 face_center_x = x + w / 2
                 face_center_y = y + h / 2
                 distance = np.sqrt(
                     (face_center_x - width / 2) ** 2 + (face_center_y - height / 2) ** 2
                 )
 
+                # Update the best_face if this face is larger, or equally large but closer to the center
                 if face_area > largest_area or (
                     face_area == largest_area and distance < best_distance
                 ):
                     best_face = face
-                    best_distance = distance
                     largest_area = face_area
+                    best_distance = distance
 
             if best_face:
                 bbox = best_face["bbox"].astype(int)
-                x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-                current_frame_positions = [(x, y, w, h)]
-
                 if "landmark_2d_106" in best_face:
                     lmk = best_face["landmark_2d_106"]
                     lmk = np.round(lmk).astype(np.int64)
+                    for point in lmk:
+                        cv2.circle(
+                            display_frame,
+                            tuple(point),
+                            3,
+                            (200, 160, 75),
+                            1,
+                            cv2.LINE_AA,
+                        )
+
+                    current_frame_positions = [
+                        (bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1])
+                    ]
                     current_frame_face_data = [lmk.tolist()]
                     eye_point1 = tuple(lmk[35])
                     eye_point2 = tuple(lmk[93])
                     current_frame_eye_data = [(eye_point1, eye_point2)]
 
-                    last_landmarks = lmk
-                    last_eye_points = (eye_point1, eye_point2)
-
                     face_positions.append(current_frame_positions)
                     eye_endpoint.append(current_frame_eye_data)
                     face_recognitions.append(current_frame_face_data)
 
-        if last_landmarks is not None and last_eye_points is not None:
-            for point in last_landmarks:
-                cv2.circle(frame, tuple(point), 3, (200, 160, 75), 1, cv2.LINE_AA)
-            cv2.line(frame, last_eye_points[0], last_eye_points[1], (255, 0, 0), 2)
-
-        cv2.imshow(window_name, frame)
+        cv2.imshow(window_name, display_frame)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
@@ -219,7 +227,7 @@ def calculate_cosine_similarity(v1, v2):
     return dot_product / (norm_v1 * norm_v2)
 
 
-def find_matching_faces(csv_files, min_frame_interval=10):
+def find_matching_faces(csv_files):
     all_face_positions = []
     all_eye_endpoints = []
     for csv_file in csv_files:
@@ -229,9 +237,6 @@ def find_matching_faces(csv_files, min_frame_interval=10):
 
     matched_faces = []
     min_length = min(len(positions) for positions in all_face_positions)
-    last_matched_frame = (
-        -min_frame_interval
-    )  # Initialize to a value outside possible frame index
 
     for frame_index in range(min_length):
         frame_faces = [
@@ -243,10 +248,6 @@ def find_matching_faces(csv_files, min_frame_interval=10):
             continue  # Skip frames without valid eye endpoint data
 
         current_frame = frame_index * 5
-
-        # Check if the current frame is sufficiently far from the last matched frame
-        if current_frame - last_matched_frame < min_frame_interval:
-            continue
 
         face_pairs = []
         for i in range(len(frame_faces)):
@@ -263,9 +264,8 @@ def find_matching_faces(csv_files, min_frame_interval=10):
                     x1, y1, w1, h1 = face1
                     x2, y2, w2, h2 = face2
                     iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
-                    if iou_score > 0.9:
+                    if iou_score > 0.7:
                         matched_faces.append((current_frame, index1, index2))
-                        last_matched_frame = current_frame
                         print(
                             f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}"
                         )
@@ -434,8 +434,8 @@ if __name__ == "__main__":
 
     folder_path = "./data/"  # Folder path for storing videos
     video_files = [
-        "ive_baddie_1.mp4",
-        "ive_baddie_2.mp4",
+        "pose_sync_ive_baddie_1.mp4",
+        "pose_sync_ive_baddie_2.mp4",
         # "ive_baddie_3.mp4",
         # "ive_baddie_4.mp4",
         # "ive_baddie_5.mp4",
