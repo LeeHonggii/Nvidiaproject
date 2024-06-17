@@ -4,10 +4,8 @@ import csv
 import os
 from multiprocessing import Pool, cpu_count
 
-# Define the codec for the output video
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # You can use other codecs like 'XVID', 'DIVX', etc.
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
-# Function to split the tensor data
 def split_data(data):
     faces = []
     bodies = []
@@ -24,7 +22,6 @@ def split_data(data):
 
     return faces, bodies, legs
 
-# Function to save data to a CSV file
 def save_to_csv(filename, frame_data):
     headers = [
         'frame_number',
@@ -42,88 +39,60 @@ def save_to_csv(filename, frame_data):
                 flattened_row = [frame_number] + [item for sublist in face + body + leg for item in sublist]
                 writer.writerow(flattened_row)
 
-# Function to process a single video file
 def process_video(video_path):
-    # Load the YOLOv8 model inside the function
     model = YOLO("yolov8n-pose.pt")
-
-    # Open the video file
     cap = cv2.VideoCapture(video_path)
 
-    # Check if video opened successfully
     if not cap.isOpened():
         print(f"Error: Could not open video {video_path}.")
         return None
 
-    # Get the video frame width, height, and frames per second (fps)
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
 
-    # Define the output paths
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     output_video_path = f"{video_name}_output.mp4"
     output_csv_path = f"{video_name}.csv"
 
-    # Create a VideoWriter object to save the output video
     out = cv2.VideoWriter(output_video_path, fourcc, fps, (frame_width, frame_height))
 
-    # Initialize frame number and data storage
     frame_number = 0
     frame_data = []
 
-    # Loop through the video frames
     while cap.isOpened():
-        # Read a frame from the video
         success, frame = cap.read()
 
         if success:
-            # Run YOLOv8 tracking on the frame, persisting tracks between frames
             results = model.track(frame, conf=0.5)
 
-            # Visualize the results on the frame
             if results:
                 annotated_frame = results[0].plot()
-                # Extract keypoints data
                 data = results[0].keypoints.data
-
-                # Split the data into faces, bodies, and legs
                 faces, bodies, legs = split_data(data)
 
-                # Append the frame data for CSV output
                 frame_data.append((frame_number, faces, bodies, legs))
-
-                # Write the annotated frame to the output video file
                 out.write(annotated_frame)
-
-                # Display the annotated frame
                 cv2.imshow("YOLOv8 Tracking", annotated_frame)
             else:
                 print(f"Warning: No results found for frame {frame_number}.")
 
-            # Increment the frame number
             frame_number += 1
 
-            # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
         else:
-            # Break the loop if the end of the video is reached
             break
 
-    # Release the video capture and writer objects and close the display window
     cap.release()
     out.release()
     cv2.destroyAllWindows()
 
-    # Save the collected frame data to a CSV file
     save_to_csv(output_csv_path, frame_data)
-
     print(f"Processed {video_path} and saved to {output_csv_path} and {output_video_path}.")
 
     return output_csv_path
 
-# Function to process videos in parallel
 def process_videos(video_files):
     with Pool(processes=cpu_count()) as pool:
         csv_files = pool.map(process_video, video_files)
