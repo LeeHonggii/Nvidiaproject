@@ -4,8 +4,10 @@ import os
 from insightface.app import FaceAnalysis
 import json
 import csv
+import time
 from itertools import combinations
 from multiprocessing import Pool, cpu_count
+
 
 def process_video(video_path):
     if not os.path.exists(video_path):
@@ -35,68 +37,45 @@ def process_video(video_path):
     face_recognitions = []
     eye_endpoint = []
 
-    LARGE_FACE_AREA = 40000  # 큰 얼굴 면적
-    MIN_FACE_AREA = 10000  # 최소 얼굴 면적
+    last_landmarks = None
+    last_eye_points = None
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
+        if frame.shape[:2] != (height, width):
+            print(
+                f"Frame size mismatch: expected {(height, width)}, got {frame.shape[:2]}"
+            )
+            continue
+
         frame_count += 1
         best_face = None
-        min_distance_x = float("inf")
-        min_distance_y = float("inf")
-        # TODO : CHANGE the algorhythm of filtering faces
+
         if frame_count % 5 == 0:  # Process every 5th frame
             faces = app.get(frame)
+            best_distance = float("inf")
+            largest_area = 0
 
-            # Step 1: Select face with area >= LARGE_FACE_AREA if exists
             for face in faces:
                 bbox = face["bbox"].astype(int)
                 x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
                 face_area = w * h
 
-                if face_area >= LARGE_FACE_AREA:
+                face_center_x = x + w / 2
+                face_center_y = y + h / 2
+                distance = np.sqrt(
+                    (face_center_x - width / 2) ** 2 + (face_center_y - height / 2) ** 2
+                )
+
+                if face_area > largest_area or (
+                    face_area == largest_area and distance < best_distance
+                ):
                     best_face = face
-                    break
-
-            # Step 2: If no face with LARGE_FACE_AREA, find face closest to the center in x-direction
-            if best_face is None:
-                for face in faces:
-                    bbox = face["bbox"].astype(int)
-                    x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-                    face_area = w * h
-
-                    if face_area < MIN_FACE_AREA:
-                        continue  # Skip faces smaller than the minimum face area
-
-                    face_center_x = x + w / 2
-                    distance_x = abs(face_center_x - width / 2)
-
-                    if distance_x < min_distance_x:
-                        min_distance_x = distance_x
-                        best_face_x = face
-
-                # Step 3: From the x-closest faces, find face closest to the center in y-direction
-                for face in faces:
-                    bbox = face["bbox"].astype(int)
-                    x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-                    face_area = w * h
-
-                    if face_area < MIN_FACE_AREA:
-                        continue  # Skip faces smaller than the minimum face area
-
-                    face_center_x = x + w / 2
-                    face_center_y = y + h / 2
-                    distance_x = abs(face_center_x - width / 2)
-
-                    if distance_x == min_distance_x:
-                        distance_y = abs(face_center_y - height / 2)
-
-                        if distance_y < min_distance_y:
-                            min_distance_y = distance_y
-                            best_face = face
+                    best_distance = distance
+                    largest_area = face_area
 
             if best_face:
                 bbox = best_face["bbox"].astype(int)
@@ -111,28 +90,26 @@ def process_video(video_path):
                     eye_point2 = tuple(lmk[93])
                     current_frame_eye_data = [(eye_point1, eye_point2)]
 
-                    for point in lmk:
-                        cv2.circle(
-                            frame, tuple(point), 3, (200, 160, 75), 1, cv2.LINE_AA
-                        )
-                    cv2.line(frame, eye_point1, eye_point2, (255, 0, 0), 2)
+                    last_landmarks = lmk
+                    last_eye_points = (eye_point1, eye_point2)
 
-                face_positions.append(current_frame_positions)
-                eye_endpoint.append(current_frame_eye_data)
-                face_recognitions.append(current_frame_face_data)
+                    face_positions.append(current_frame_positions)
+                    eye_endpoint.append(current_frame_eye_data)
+                    face_recognitions.append(current_frame_face_data)
 
-            cv2.imshow(window_name, frame)
+        if last_landmarks is not None and last_eye_points is not None:
+            for point in last_landmarks:
+                cv2.circle(frame, tuple(point), 3, (200, 160, 75), 1, cv2.LINE_AA)
+            cv2.line(frame, last_eye_points[0], last_eye_points[1], (255, 0, 0), 2)
 
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
+        cv2.imshow(window_name, frame)
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
 
     cap.release()
     cv2.destroyAllWindows()
-    print(face_positions)
-    print(total_frames // 5)
-    print(len(face_positions))
 
-    # Save data to CSV
     input_file_name = os.path.splitext(os.path.basename(video_path))[0]
     output_csv = f"output_{input_file_name}.csv"
     with open(output_csv, "w", newline="") as csvfile:
@@ -333,7 +310,9 @@ def create_json_structure(
 
     # Define streams
     # TODO: REMOVE folder_path from vp
-    streams = [{"file": vp, "start": 0, "end": 0} for vp in video_paths]
+    streams = [
+        {"file": os.path.basename(vp), "start": 0, "end": 0} for vp in video_paths
+    ]
 
     time_conversion = 1 / fps[0]
 
@@ -450,27 +429,22 @@ def process_video_multiprocessing(video_paths):
 
 
 if __name__ == "__main__":
+
+    start_time = time.time()
+
     folder_path = "./data/"  # Folder path for storing videos
     video_files = [
         "ive_baddie_1.mp4",
         "ive_baddie_2.mp4",
-        "ive_baddie_3.mp4",
-        "ive_baddie_4.mp4",
-        "ive_baddie_5.mp4",
-        "ive_baddie_6.mp4",
+        # "ive_baddie_3.mp4",
+        # "ive_baddie_4.mp4",
+        # "ive_baddie_5.mp4",
+        # "ive_baddie_6.mp4",
     ]
     video_paths = [os.path.join(folder_path, video_file) for video_file in video_files]
-
     results = process_video_multiprocessing(video_paths)
     csv_files = []
-    # csv_files = [
-    #     "output_ive_baddie_1.csv",
-    #     "output_ive_baddie_2.csv",
-    #     "output_ive_baddie_3.csv",
-    #     "output_ive_baddie_4.csv",
-    #     "output_ive_baddie_5.csv",
-    #     "output_ive_baddie_6.csv",
-    # ]
+    # csv_files = [#     "output_ive_baddie_1.csv",#     "output_ive_baddie_2.csv",#     "output_ive_baddie_3.csv",#     "output_ive_baddie_4.csv",#     "output_ive_baddie_5.csv",#     "output_ive_baddie_6.csv",# ]
     fps_list = []
     # fps_list = [29.97002997002997]
     total_frames_list = []
@@ -478,7 +452,7 @@ if __name__ == "__main__":
     duration_list = []
     # duration_list = [160.72723333333334]
 
-    for video_path in video_paths:
+    for result in results:
         (
             face_positions,
             eye_endpoint,
@@ -487,7 +461,7 @@ if __name__ == "__main__":
             total_frames,
             duration,
             output_csv,
-        ) = process_video(video_path)
+        ) = result
         csv_files.append(output_csv)
         fps_list.append(fps)
         total_frames_list.append(total_frames)
@@ -496,12 +470,18 @@ if __name__ == "__main__":
     matched_faces = find_matching_faces(csv_files)
     print(matched_faces)
 
+    finished_time = time.time()
+
+    processed_time = finished_time - start_time
+    print("------------------------------------------------------------")
+    print("processed_time : ", processed_time)
+
     scene_list = []
 
-    for i in range(0, len(video_files)):
-        frame_detected_list = []
-        frame_detected_list = frame_difference_detection(video_paths[i])
-        scene_list.append(frame_detected_list)
+    # for i in range(0, len(video_files)):
+    #     frame_detected_list = []
+    #     frame_detected_list = frame_difference_detection(video_paths[i])
+    #     scene_list.append(frame_detected_list)
 
     # Create the JSON structure
     json_structure = create_json_structure(
