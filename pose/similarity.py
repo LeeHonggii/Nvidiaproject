@@ -3,7 +3,7 @@ from scipy.spatial.distance import euclidean, cosine
 from fastdtw import fastdtw
 import pandas as pd
 from tqdm import tqdm
-from face import initialize_face_analysis, process_video_frames, compare_faces
+#from pose.face import initialize_face_analysis, process_video_frames, compare_faces
 
 def calculate_similarities(csv_files, video_files, video_file_mapping, width, height, threshold, position_threshold, size_threshold, avg_similarity_threshold,random_point):
     #app = initialize_face_analysis()

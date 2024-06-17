@@ -25,6 +25,17 @@ if __name__ == "__main__":
         "ive_baddie_4.mp4",
         "ive_baddie_5.mp4"
     ]
+    video_paths = [os.path.join(folder_path, file) for file in video_files]
+    # Process videos using multiprocessing
+    results = process_video_multiprocessing(video_paths)
+    print("Video processing completed.")
+
+    # Extract CSV file paths from results
+    csv_files = [result[-1] for result in results]
+
+    # Find matching faces across videos
+    matched_faces = find_matching_faces(csv_files)
+    print("Matching faces found:", matched_faces)
 
     # 비디오 파일을 처리하고 CSV 파일 매핑을 가져옴
     csv_video_mapping = process_videos(video_files)
