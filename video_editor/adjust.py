@@ -2,12 +2,17 @@ from moviepy.editor import VideoFileClip, concatenate_videoclips
 from math import radians, degrees, sin, cos, acos
 from sympy import symbols, Eq, solve
 import bisect
+import random
 from line_add import prepare_sample
 
 dot_product = lambda v1, v2: v1[0] * v2[0] + v1[1] * v2[1]
 cross_product = lambda v1, v2: v1[0] * v2[1] - v1[1] * v2[0]
 length = lambda v: (v[0]**2 + v[1]**2)**(1/2)
 dist = lambda w, h: (w**2 + h**2)**(1/2)
+
+
+def vector_bigger(v1, v2):
+    return length(v1[2:]) >= length(v2[2:])
 
 
 def calculate_signed_angle(v1, v2):
@@ -37,23 +42,6 @@ def find_intersection(x1, y1, a, x2, y2, b):
     solutions = solve((eq1, eq2), (x, y))
 
     return solutions
-
-
-def vector_interpolation(v1, v2):
-    # diff_x, diff_y, ratio, angle, px, py, pw, ph, _, _, _, _ = vector_difference(prev_vector, curr_vector)
-    # print("vector_difference called", prev_vector, curr_vector)
-    # px, py, pw, ph = prev_vector
-    # cx, cy, cw, ch = clurr_vector
-    # px2, py2 = px + pw, py + ph
-    # cx2, cy2 = cx + cw, cy + ch
-    # adjust_vector = int(px + (diff_x / 2)), int(py + (diff_y / 2)), int(pw * ((1/ratio) ** 0.5)), int(ph * ((1/ratio) ** 0.5))
-    x1, y1, w1, h1 = v1
-    x2, y2, w2, h2 = v2
-    x12, y12 = x1 + w1, y1 + h1
-    x22, y22 = x2 + w2, y2 + h2
-    ix1, iy1, ix2, iy2 = (x1 + x2) // 2, (y1 + y2) // 2, (x12 + x22) // 2, (y12 + y22) // 2
-
-    return [ix1, iy1, ix2 - ix1, iy2 - iy1]
 
 
 def get_adjusted_clip(clip, v1, v2):
@@ -132,6 +120,124 @@ def get_adjusted_clip(clip, v1, v2):
 
     return clip
 
+
+def adjust_vector(clip, v1, v2, v3):
+    if v1 == v2:
+        return v3
+
+    x1, y1, w1, h1 = v1
+    x2, y2, w2, h2 = v2
+    x3, y3, w3, h3 = v3
+    x12, y12 = x1 + w1, y1 + h1
+    x22, y22 = x2 + w2, y2 + h2
+    x32, y32 = x3 + w3, y3 + h3
+
+    diff_x1 = x2 - x1
+    diff_y1 = y2 - y1
+    diff_x2 = x22 - x12
+    diff_y2 = y22 - y12
+
+    length_1 = dist(w1, h1)
+    length_2 = dist(w2, h2)
+    ratio = length_1 / length_2
+    rotate_angle = calculate_signed_angle((w1, h1), (w2, h2))
+
+    width, height = clip.size
+    center_x = int(width / 2)
+    center_y = int(height / 2)
+
+    # 1) moving
+    x4 = x3 - diff_x1
+    y4 = y3 - diff_y1
+    x42 = x32 - diff_x2
+    y42 = y32 - diff_y2
+
+    # 2) rotation
+    distance_from_center1 = dist(x4 - center_x, y4 - center_y)
+    if distance_from_center1 == 0:
+        rotated_move_x = 0
+        rotated_move_y = 0
+    else:
+        opposite_side1 = distance_from_center1 * sin(radians((abs(rotate_angle) / 2)))
+        near_side1 = distance_from_center1 * cos(radians((abs(rotate_angle) / 2)))
+        solution1 = find_intersection(x4, y4, opposite_side1, center_x, center_y, near_side1)
+        i = 0 if rotate_angle > 0 else 1
+        if len(solution1) == 1:
+            i = 0
+        rotated_move_x1 = (solution1[i][0] - x4) * 2
+        rotated_move_y1 = (solution1[i][1] - y4) * 2
+
+    distance_from_center2 = dist(x42 - center_x, y42 - center_y)
+    if distance_from_center2 == 0:
+        rotated_move_x = 0
+        rotated_move_y = 0
+    else:
+        opposite_side2 = distance_from_center2 * sin(radians((abs(rotate_angle) / 2)))
+        near_side2 = distance_from_center2 * cos(radians((abs(rotate_angle) / 2)))
+        solution2 = find_intersection(x42, y42, opposite_side2, center_x, center_y, near_side2)
+        i = 0 if rotate_angle > 0 else 1
+        if len(solution2) == 1:
+            i = 0
+        rotated_move_x2 = (solution2[i][0] - x42) * 2
+        rotated_move_y2 = (solution2[i][1] - y42) * 2
+
+    if (rotated_move_x1+rotated_move_y1+rotated_move_x2+rotated_move_y2) != 0:
+        print(f"!!!ALERT: Wrong rotate {rotated_move_x1+rotated_move_y1+rotated_move_x2+rotated_move_y2}")
+    x4 = x4 + rotated_move_x1
+    y4 = y4 + rotated_move_y1
+    x42 = x42 + rotated_move_x2
+    y42 = y42 + rotated_move_y2
+
+
+    rotated_window_width, rotated_window_height = clip.size
+    # print(f"rotated window size: {rotated_window_width} x {rotated_window_height}")
+    window_move_x = abs(rotated_window_width - width) / 2
+    window_move_y = abs(rotated_window_height - height) / 2
+
+    # 3) resize
+    # clip = clip.on_color(size=(width, height), color=(0, 0, 0), pos=(-diff_x, -diff_y))
+    # clip = clip.resize(ratio)
+
+    x4 = x4 * ratio
+    y4 = y4 * ratio
+    x42 = x42 * ratio
+    y42 = y42 * ratio
+
+    # 4) total correction
+    # total_move_x = (rotated_move_x + window_move_x) * ratio + scaled_move_x
+    # total_move_y = (rotated_move_y + window_move_y) * ratio + scaled_move_y
+    # # print(f"rotated_move_x: {rotated_move_x:.1f} + window_move_x: {window_move_x:.1f} + scaled_move_x: {scaled_move_x:.1f} = total_move_x: {total_move_x:.1f}")
+    # # print(f"rotated_move_y: {rotated_move_y:.1f} + window_move_y: {window_move_y:.1f} + scaled_move_y: {scaled_move_y:.1f} = total_move_y: {total_move_y:.1f}")
+    #
+    # clip = clip.on_color(size=(width, height), color=(0, 0, 0), pos=(-total_move_x, -total_move_y))
+    # clip = clip.resize(newsize=(width, height))
+
+    return [int(x4), int(y4), int(abs(x42 - x4)), int(abs(y42 - y4))]
+
+
+def vector_interpolation(v1, v2):
+    # diff_x, diff_y, ratio, angle, px, py, pw, ph, _, _, _, _ = vector_difference(prev_vector, curr_vector)
+    # print("vector_difference called", prev_vector, curr_vector)
+    # px, py, pw, ph = prev_vector
+    # cx, cy, cw, ch = clurr_vector
+    # px2, py2 = px + pw, py + ph
+    # cx2, cy2 = cx + cw, cy + ch
+    # adjust_vector = int(px + (diff_x / 2)), int(py + (diff_y / 2)), int(pw * ((1/ratio) ** 0.5)), int(ph * ((1/ratio) ** 0.5))
+    x1, y1, w1, h1 = v1
+    x2, y2, w2, h2 = v2
+    x12, y12 = x1 + w1, y1 + h1
+    x22, y22 = x2 + w2, y2 + h2
+    ix1, iy1, ix2, iy2 = (x1 + x2) // 2, (y1 + y2) // 2, (x12 + x22) // 2, (y12 + y22) // 2
+
+    if dist(w1, h1) >= dist(w2, h2):
+        intr_vector = v1
+    else:
+        intr_vector = v2
+
+    return intr_vector
+    # return [ix1, iy1, ix2 - ix1, iy2 - iy1]
+
+
 def find_in_between(sorted_list, x, y):
     start = bisect.bisect_left(sorted_list, x)
     end = bisect.bisect_left(sorted_list, y)
@@ -147,56 +253,84 @@ def line_to_vector(line1, line2):
     return v1, v2
 
 
+# a = [1, 2, 3, 4]
+# a.insert(0, 100)
+# b = [1000, 2000]
+# b.append(a)
+# print(a)
+# print(b)
+# a = [3, 4]
+# print(a)
+# print(b)
+# quit()
+
 if __name__ == "__main__":
-    clip1 = VideoFileClip("data/line1.mp4")
-    clip2 = VideoFileClip("data/line2.mp4")
+    clip1 = VideoFileClip("data/test_video_4_out.mp4")
+    clip2 = VideoFileClip("data/test_video_1_out.mp4")
 
-    # width, height = clip1.size
-    # center_x = int(width / 2)
-    # center_y = int(height / 2)
+    v1 = [789, 231, 400, 400]
+    v2 = [790, 233, 406, 406]
+    v3 = [1323, 484, 78, 78]
+    v4 = adjust_vector(clip1, v1, v2, v3)
+    print(v1, v2, v3, v4)
+
+    clip1_new = get_adjusted_clip(clip1, v1, v2)
+    output_path = f'data/test_video_4_out_new.mp4'
+    clip1_new.write_videofile(output_path, codec='libx264', audio_codec='aac')
+
+    final_clip = concatenate_videoclips([clip1_new, clip2])
+    output_path = f'data/vector_test_final_{random.randint(0, 999):03d}.mp4'
+    final_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
+
+    # clip1 = VideoFileClip("data/line1.mp4")
+    # clip2 = VideoFileClip("data/line2.mp4")
     #
-    # # line1 = x1, y1, x12, y12 = (100, 100, 220, 100)
-    # # line2 = x2, y2, x22, y22 = (120, 120, 200, 140)
-    # # line1 = (center_x, center_y, center_x + 200, center_y)
-    # # line2 = (center_x, center_y, center_x + 200, center_y + 100)
-    # # prepare_sample(line1, line2)
-    # # quit()
-
-    line1 = (100, 100, 220, 100)
-    line2 = (120, 120, 200, 140)
-    v1, v2 = line_to_vector(line1, line2)
-    x1, y1, w1, h1 = v1
-    x2, y2, w2, h2 = v2
-    # v1 = (x1, y1, x12 - x1, y12 - y1)
-    # v2 = (x2, y2, x22 - x2, y22 - y2)
-    # a = 720 / 1080
-    # v1 = (int(788*a), int(229*a), int(395*a), int(395*a))
-    # v2 = (int(790*a), int(233*a), int(406*a), int(406*a))
+    # # width, height = clip1.size
+    # # center_x = int(width / 2)
+    # # center_y = int(height / 2)
+    # #
+    # # # line1 = x1, y1, x12, y12 = (100, 100, 220, 100)
+    # # # line2 = x2, y2, x22, y22 = (120, 120, 200, 140)
+    # # # line1 = (center_x, center_y, center_x + 200, center_y)
+    # # # line2 = (center_x, center_y, center_x + 200, center_y + 100)
+    # # # prepare_sample(line1, line2)
+    # # # quit()
+    #
+    # line1 = (100, 100, 220, 100)
+    # line2 = (120, 120, 200, 140)
+    # v1, v2 = line_to_vector(line1, line2)
     # x1, y1, w1, h1 = v1
     # x2, y2, w2, h2 = v2
-    # line1 = (x1, y1, x1 + w1, y1 + h1)
-    # line2 = (x2, y2, x2 + w2, y2 + h2)
-    # prepare_sample(line1, line2)
-
-    # line1 = (center_x, center_y, center_x + 200, center_y)
-    # line2 = (center_x, center_y, center_x + 200, center_y + 100)
-    # v1, v2 = line_to_vector(line1, line2)
-
-    ratio = 2.0
-    v3 = x1, y1, w1*ratio, h1*ratio
-    temp_clip = get_adjusted_clip(clip2, v1, v2)
-    adjust_clip1 = get_adjusted_clip(temp_clip, v3, v1)
-    adjust_clip2 = get_adjusted_clip(clip2, v3, v2)
-
-    final_clip = concatenate_videoclips([clip1, adjust_clip1, adjust_clip2])
-
-    # duration_sum = clip1.duration + adjust_clip1.duration + adjust_clip2.duration
-    # duration_final = final_clip.duration
-    # print(duration_sum, duration_final, duration_sum == duration_final)
-    final_clip.write_videofile("data/adjust_video.mp4", codec='libx264', audio_codec='aac')
-
-    clip1.close()
-    clip2.close()
-    adjust_clip1.close()
-    adjust_clip2.close()
-    final_clip.close()
+    # # v1 = (x1, y1, x12 - x1, y12 - y1)
+    # # v2 = (x2, y2, x22 - x2, y22 - y2)
+    # # a = 720 / 1080
+    # # v1 = (int(788*a), int(229*a), int(395*a), int(395*a))
+    # # v2 = (int(790*a), int(233*a), int(406*a), int(406*a))
+    # # x1, y1, w1, h1 = v1
+    # # x2, y2, w2, h2 = v2
+    # # line1 = (x1, y1, x1 + w1, y1 + h1)
+    # # line2 = (x2, y2, x2 + w2, y2 + h2)
+    # # prepare_sample(line1, line2)
+    #
+    # # line1 = (center_x, center_y, center_x + 200, center_y)
+    # # line2 = (center_x, center_y, center_x + 200, center_y + 100)
+    # # v1, v2 = line_to_vector(line1, line2)
+    #
+    # ratio = 2.0
+    # v3 = x1, y1, w1*ratio, h1*ratio
+    # temp_clip = get_adjusted_clip(clip2, v1, v2)
+    # adjust_clip1 = get_adjusted_clip(temp_clip, v3, v1)
+    # adjust_clip2 = get_adjusted_clip(clip2, v3, v2)
+    #
+    # final_clip = concatenate_videoclips([clip1, adjust_clip1, adjust_clip2])
+    #
+    # # duration_sum = clip1.duration + adjust_clip1.duration + adjust_clip2.duration
+    # # duration_final = final_clip.duration
+    # # print(duration_sum, duration_final, duration_sum == duration_final)
+    # final_clip.write_videofile("data/adjust_video.mp4", codec='libx264', audio_codec='aac')
+    #
+    # clip1.close()
+    # clip2.close()
+    # adjust_clip1.close()
+    # adjust_clip2.close()
+    # final_clip.close()
