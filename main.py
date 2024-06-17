@@ -2,6 +2,7 @@ import os
 from tqdm import tqdm
 from pose.pose import process_videos
 from pose.similarity import calculate_similarities
+from pose.face import process_video_multiprocessing
 
 # 하이퍼파라미터 설정
 WIDTH = 1920
