@@ -5,7 +5,6 @@ from insightface.app import FaceAnalysis
 import json
 import csv
 import time
-from itertools import combinations
 from multiprocessing import Pool, cpu_count
 
 
@@ -32,11 +31,18 @@ def process_video(video_path):
     window_name = "Video"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
+    # Define the x and y coordinates for the vertical and horizontal lines
+    line1_x = int(width * 0.35)
+    line2_x = int(width * 0.65)
+    line1_y = int(height * 0.25)
+    line2_y = int(height * 0.6)
+    target_x = (line1_x + line2_x) // 2
+    target_y = (line1_y + line2_y) // 2
+
     frame_count = 0
     face_positions = []
     face_recognitions = []
     eye_endpoint = []
-    frames_to_display = {}  # To keep landmark drawings on screen
 
     while True:
         ret, frame = cap.read()
@@ -44,71 +50,51 @@ def process_video(video_path):
             break
 
         frame_count += 1
-        display_frame = frame.copy()  # Make a copy of the frame to draw updates
+        display_frame = frame.copy()
 
-        # Draw a circle at the center of the video
-        center_x = width // 2
-        center_y = height // 2
-        cv2.circle(display_frame, (center_x, center_y), 10, (0, 0, 255), -1)
+        # Draw vertical and horizontal lines
+        cv2.line(display_frame, (line1_x, 0), (line1_x, height), (255, 255, 0), 2)
+        cv2.line(display_frame, (line2_x, 0), (line2_x, height), (255, 255, 0), 2)
+        cv2.line(display_frame, (0, line1_y), (width, line1_y), (255, 255, 0), 2)
+        cv2.line(display_frame, (0, line2_y), (width, line2_y), (255, 255, 0), 2)
 
-        if frame_count % 5 == 0:  # Process every 5th frame
-            faces = app.get(frame)
-            best_face = None
-            largest_area = 0
-            best_distance = float("inf")
+        best_face = None
+        min_distance = float("inf")
 
-            for face in faces:
-                bbox = face["bbox"].astype(int)
-                cv2.rectangle(
-                    display_frame,
-                    (bbox[0], bbox[1]),
-                    (bbox[2], bbox[3]),
-                    (0, 255, 0),
-                    2,
-                )  # Draw rectangle for all faces
+        faces = app.get(frame)
 
-                x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-                face_area = w * h
-                face_center_x = x + w / 2
-                face_center_y = y + h / 2
-                distance = np.sqrt(
-                    (face_center_x - width / 2) ** 2 + (face_center_y - height / 2) ** 2
-                )
+        for face in faces:
+            bbox = face["bbox"].astype(int)
+            face_center_x = bbox[0] + (bbox[2] - bbox[0]) // 2
+            face_center_y = bbox[1] + (bbox[3] - bbox[1]) // 2
 
-                # Update the best_face if this face is larger, or equally large but closer to the center
-                if face_area > largest_area or (
-                    face_area == largest_area and distance < best_distance
-                ):
+            if line1_x <= face_center_x <= line2_x and line1_y <= face_center_y <= line2_y:
+                cv2.rectangle(display_frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
+                distance = abs(face_center_x - target_x) + abs(face_center_y - target_y)
+
+                if best_face is None or distance < min_distance or (abs(distance - min_distance) < 10 and (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) > (best_face["bbox"][2] - best_face["bbox"][0]) * (best_face["bbox"][3] - best_face["bbox"][1])):
+                    min_distance = distance
                     best_face = face
-                    largest_area = face_area
-                    best_distance = distance
+            else:
+                cv2.rectangle(display_frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (255, 0, 0), 1)
 
-            if best_face:
-                bbox = best_face["bbox"].astype(int)
-                if "landmark_2d_106" in best_face:
-                    lmk = best_face["landmark_2d_106"]
-                    lmk = np.round(lmk).astype(np.int64)
-                    for point in lmk:
-                        cv2.circle(
-                            display_frame,
-                            tuple(point),
-                            3,
-                            (200, 160, 75),
-                            1,
-                            cv2.LINE_AA,
-                        )
+        if best_face:
+            bbox = best_face["bbox"].astype(int)
+            cv2.rectangle(display_frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (255, 0, 0), 3)
+            if "landmark_2d_106" in best_face:
+                lmk = best_face["landmark_2d_106"]
+                lmk = np.round(lmk).astype(np.int64)
+                for point in lmk:
+                    cv2.circle(display_frame, tuple(point), 2, (0, 0, 255), -1, cv2.LINE_AA)
+                current_frame_positions = [(bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1])]
+                current_frame_face_data = [lmk.tolist()]
+                eye_point1 = tuple(lmk[35])
+                eye_point2 = tuple(lmk[93])
+                current_frame_eye_data = [(eye_point1, eye_point2)]
 
-                    current_frame_positions = [
-                        (bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1])
-                    ]
-                    current_frame_face_data = [lmk.tolist()]
-                    eye_point1 = tuple(lmk[35])
-                    eye_point2 = tuple(lmk[93])
-                    current_frame_eye_data = [(eye_point1, eye_point2)]
-
-                    face_positions.append(current_frame_positions)
-                    eye_endpoint.append(current_frame_eye_data)
-                    face_recognitions.append(current_frame_face_data)
+                face_positions.append(current_frame_positions)
+                eye_endpoint.append(current_frame_eye_data)
+                face_recognitions.append(current_frame_face_data)
 
         cv2.imshow(window_name, display_frame)
 
@@ -136,7 +122,6 @@ def process_video(video_path):
         duration,
         output_csv,
     )
-
 
 def load_csv_data(file_path):
     face_positions = []
@@ -238,6 +223,8 @@ def find_matching_faces(csv_files):
     matched_faces = []
     min_length = min(len(positions) for positions in all_face_positions)
 
+    last_matched_frame = -float("inf")
+
     for frame_index in range(min_length):
         frame_faces = [
             face_positions[frame_index] for face_positions in all_face_positions
@@ -247,8 +234,8 @@ def find_matching_faces(csv_files):
         if not all(frame_eyes):
             continue  # Skip frames without valid eye endpoint data
 
-        current_frame = frame_index * 5
-
+        current_frame = frame_index 
+        
         face_pairs = []
         for i in range(len(frame_faces)):
             for face1 in frame_faces[i]:
@@ -263,9 +250,19 @@ def find_matching_faces(csv_files):
                 if frame_eyes[index1] and frame_eyes[index2]:
                     x1, y1, w1, h1 = face1
                     x2, y2, w2, h2 = face2
+
+                    area1 = w1 * h1
+                    area2 = w2 * h2
+
+                    if area1 > 0 and area2 > 0:
+                        area_ratio = max(area1, area2) / min(area1, area2)
+                        if area_ratio > 1.5:
+                            continue  # Skip this frame if area size difference is more than 1.5
+
                     iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
-                    if iou_score > 0.7:
+                    if iou_score > 0.6:
                         matched_faces.append((current_frame, index1, index2))
+                        last_matched_frame = current_frame
                         print(
                             f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}"
                         )
@@ -309,7 +306,6 @@ def create_json_structure(
     }
 
     # Define streams
-    # TODO: REMOVE folder_path from vp
     streams = [
         {"file": os.path.basename(vp), "start": 0, "end": 0} for vp in video_paths
     ]
@@ -365,7 +361,7 @@ def write_json_file(parameter, output_file):
 
 
 def frame_difference_detection(
-    video_path, threshold=60, resize_factor=1, aggregation_window=18
+    video_path, threshold=20, resize_factor=1, aggregation_window=18
 ):
     frame_list = []
     cap = cv2.VideoCapture(video_path)
@@ -434,12 +430,12 @@ if __name__ == "__main__":
 
     folder_path = "./data/"  # Folder path for storing videos
     video_files = [
-        "pose_sync_ive_baddie_1.mp4",
-        "pose_sync_ive_baddie_2.mp4",
-        # "ive_baddie_3.mp4",
-        # "ive_baddie_4.mp4",
-        # "ive_baddie_5.mp4",
-        # "ive_baddie_6.mp4",
+        "ive_baddie_1.mp4",
+        "ive_baddie_2.mp4",
+        "ive_baddie_3.mp4",
+        "ive_baddie_4.mp4",
+        "ive_baddie_5.mp4",
+        "ive_baddie_6.mp4",
     ]
     video_paths = [os.path.join(folder_path, video_file) for video_file in video_files]
     results = process_video_multiprocessing(video_paths)
