@@ -1,14 +1,15 @@
 import torch
 import pandas as pd
-from pose.similarity import calculate_similarities
-
+import json
+from pose.pose_similarity import calculate_similarities
+from pose.transformation import find_max_transformation_order
+from make_json import generate_json
 
 def check_cuda():
     if torch.cuda.is_available():
         print("CUDA is available. Device:", torch.cuda.get_device_name(0))
     else:
         print("CUDA is not available.")
-
 
 # 하이퍼파라미터 설정
 WIDTH = 1920
@@ -48,10 +49,18 @@ video_file_mapping = {
 if __name__ == "__main__":
     check_cuda()
 
-    results, max_transformation_order, verified_matches = calculate_similarities(
-        csv_files, video_files, video_file_mapping, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD,
-        AVG_SIMILARITY_THRESHOLD, RANDOM_POINT
+    results, verified_matches, frame_similarities, frame_count, best_vectors = calculate_similarities(
+        csv_files, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
     )
+
+    max_transformation_order = find_max_transformation_order(frame_similarities, frame_count, 5)
 
     print("최대 변환 순서:", max_transformation_order)
     print("검증된 매칭 결과:", verified_matches)
+
+    json_data = generate_json(max_transformation_order, verified_matches, video_files, csv_files, video_file_mapping, best_vectors)
+
+    with open('output_pose.json', 'w') as f:
+        json.dump(json_data, f, indent=4)
+
+    print("JSON 파일이 생성되었습니다.")

@@ -2,9 +2,11 @@ import os
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from pose.pose import process_videos as process_yolo_videos
-from pose.similarity import calculate_similarities
-# from pose.face import process_video_multiprocessing, process_video_frames
+from pose.pose_similarity import calculate_similarities
+from pose.transformation import find_max_transformation_order
+from make_json import generate_json# from pose.face import process_video_multiprocessing, process_video_frames
 import torch
+import json
 
 
 def check_cuda():
@@ -44,19 +46,31 @@ async def main():
     for video, csv in csv_video_mapping.items():
         print(f"{video} -> {csv}")
 
+    # 자동 매핑된 CSV 파일 목록을 csv_files 리스트에 추가
+    csv_files = [csv_video_mapping[video] for video in video_files]
+    video_file_mapping = {csv: video for video, csv in csv_video_mapping.items()}
+
+
     # print("Face processing results:")
     # for result in face_processing_results:
     #     print(result)
 
-    csv_files = list(csv_video_mapping.values())
-    video_file_mapping = {csv: video for video, csv in csv_video_mapping.items()}
-
-    results, max_transformation_order, verified_matches = calculate_similarities(
-        csv_files, video_files, video_file_mapping, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD,
-        AVG_SIMILARITY_THRESHOLD, RANDOM_POINT
+    results, verified_matches, frame_similarities, frame_count, best_vectors = calculate_similarities(
+        csv_files, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
     )
+
+    max_transformation_order = find_max_transformation_order(frame_similarities, frame_count, 5)
+
     print("최대 변환 순서:", max_transformation_order)
     print("검증된 매칭 결과:", verified_matches)
+
+    json_data = generate_json(max_transformation_order, verified_matches, video_files, csv_files, video_file_mapping,
+                              best_vectors)
+
+    with open('output_pose.json', 'w') as f:
+        json.dump(json_data, f, indent=4)
+
+    print("JSON 파일이 생성되었습니다.")
 
 
 if __name__ == "__main__":
