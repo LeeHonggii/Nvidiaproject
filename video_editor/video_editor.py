@@ -3,12 +3,12 @@ from moviepy.editor import VideoFileClip, concatenate_videoclips, CompositeVideo
 import json
 import random
 import time
-from adjust import get_adjusted_clip, vector_interpolation, adjust_vector, find_in_between, vector_bigger
+from adjust import get_adjusted_clip, vector_interpolation, adjust_vector, find_in_between
 
 
 begin_time = time.time()
 
-with open("data/output-full.json", "r", encoding="utf-8") as file:
+with open("data/output-jh5.json", "r", encoding="utf-8") as file:
     json_string_from_file = file.read()
 
 parameter = json.loads(json_string_from_file)
@@ -85,6 +85,12 @@ if "metric" not in parameter["meta_info"] or parameter["meta_info"]["metric"] ==
     for cross in cross_list:
         cross["time_stamp"] = cross["frame_id"] * frame_gap
 
+for i in range(len(cross_list)):
+    x1, y1, x12, y12 = cross_list[i]["vector_pairs"][0]["vector1"]
+    x2, y2, x22, y22 = cross_list[i]["vector_pairs"][0]["vector2"]
+    cross_list[i]["vector_pairs"][0]["vector1"] = [x1, min(y1, y12), abs(x12-x1), abs(y12-y1)]
+    cross_list[i]["vector_pairs"][0]["vector2"] = [x2, min(y2, y22), abs(x22-x2), abs(y22-y2)]
+
 last_cross = {
     "time_stamp": init_time + total_duration,
     "next_stream": cross_list[-1]["next_stream"],
@@ -138,7 +144,7 @@ for i in range(num_cross):
 
     if prev_vector == curr_vector:
         clip = stream_list[current_stream].subclip(start_time, current_time)
-        print(f"{len(target_list)}th clip added without change. stream: {current_stream}, start: {start_time:.1f}, end: {current_time}, cv: {prev_vector}, nv: {curr_vector}")
+        print(f"{len(target_list)}th clip added without change. stream: {current_stream}, start: {start_time:.2f}, end: {current_time:.2f}, cv: {prev_vector}, nv: {curr_vector}")
         target_list.append(clip)
         # prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
     else:
@@ -146,8 +152,8 @@ for i in range(num_cross):
             print("ALERT!!! no more prev clip or prev_stream")
             quit()
 
-        intr_vector = vector_interpolation(prev_vector, curr_vector)
-        # print(intr_vector, prev_vector, curr_vector)
+        intr_vector = vector_interpolation(stream_list[current_stream], prev_vector, curr_vector)
+        print(intr_vector, prev_vector, curr_vector)
 
         if prev_vector != intr_vector:
             prev_clip = target_list.pop()
@@ -174,7 +180,7 @@ for i in range(num_cross):
 
         curr_clip = stream_list[current_stream].subclip(start_time, current_time)
         if curr_vector == intr_vector:
-            print(f"{len(target_list)}th clip added without change. stream: {current_stream}, start: {start_time:.1f}, end: {current_time}, cv: {prev_vector}, nv: {curr_vector}")
+            print(f"{len(target_list)}th clip added without change. stream: {current_stream}, start: {start_time:.2f}, end: {current_time:.2f}, cv: {prev_vector}, nv: {curr_vector}")
             target_list.append(curr_clip)
             # prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
         else:
@@ -182,7 +188,7 @@ for i in range(num_cross):
             # print(scenes_in_between)
             if len(scenes_in_between) == 0:
                 curr_clip = get_adjusted_clip(curr_clip, intr_vector, curr_vector)
-                print(f"{len(target_list)}th clip added with adjust. stream: {current_stream}, start: {start_time:.1f}, end: {current_time}, iv: {intr_vector}, cv: {curr_vector}")
+                print(f"{len(target_list)}th clip added with adjust. stream: {current_stream}, start: {start_time:.2f}, end: {current_time:.2f}, iv: {intr_vector}, cv: {curr_vector}")
                 target_list.append(curr_clip)
                 # print(target_list)
                 num_prop_post += 1
@@ -196,7 +202,7 @@ for i in range(num_cross):
 
                 changed_clip = curr_clip.subclip(0, scene_time - start_time)
                 changed_clip = get_adjusted_clip(changed_clip, intr_vector, curr_vector)
-                print(f"{len(target_list)}th clip 1st part added with adjust. stream: {current_stream}, start: {start_time:.1f}, end: {scene_time}, iv: {intr_vector}, cv: {curr_vector}")
+                print(f"{len(target_list)}th clip 1st part added with adjust. stream: {current_stream}, start: {start_time:.1f}, end: {scene_time:.2f}, iv: {intr_vector}, cv: {curr_vector}")
                 target_list.append(changed_clip)
 
                 nochange_clip = curr_clip.subclip(scene_time - start_time, curr_clip.duration)

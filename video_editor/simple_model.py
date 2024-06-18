@@ -86,15 +86,17 @@ cross_list = []
 # current_stream = random.randrange(num_stream)
 current_stream = parameter["meta_info"]["first_stream"]    # 0
 
-iou_threshold = 0.6
+# iou_threshold = 0.6
+# simularity_threshold = 0.6
+iou_threshold = 0.7
 simularity_threshold = 0.6
 
 parameter["meta_info"]["init_time"] = 0
-parameter["meta_info"]["duration"] = 10
-# parameter["meta_info"]["duration"] = int(sclip_list[0].duration)
+# parameter["meta_info"]["duration"] = 10
+parameter["meta_info"]["duration"] = int(sclip_list[0].duration)
 init_time = parameter["meta_info"]["init_time"]
 total_duration = parameter["meta_info"]["duration"]
-fraction = 0.1
+fraction = 0.05
 multiply = int(1 / fraction)
 t_start = int(init_time * multiply)
 t_size = int(total_duration * multiply)
