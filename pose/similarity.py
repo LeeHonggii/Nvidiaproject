@@ -3,11 +3,8 @@ from scipy.spatial.distance import euclidean, cosine
 from fastdtw import fastdtw
 import pandas as pd
 from tqdm import tqdm
-#from pose.face import initialize_face_analysis, process_video_frames, compare_faces
 
-def calculate_similarities(csv_files, video_files, video_file_mapping, width, height, threshold, position_threshold, size_threshold, avg_similarity_threshold,random_point):
-    #app = initialize_face_analysis()
-
+def calculate_similarities(csv_files, video_files, video_file_mapping, width, height, threshold, position_threshold, size_threshold, avg_similarity_threshold, random_point):
     def get_keypoints(row, start_index, count):
         keypoints = []
         for i in range(count):
@@ -125,30 +122,42 @@ def calculate_similarities(csv_files, video_files, video_file_mapping, width, he
                     frame_similarities[file].append((frame_num, file_pair))
         return frame_similarities
 
-    def find_max_transformation_order(frame_similarities, frame_count):
-        current_frame = 0
-        current_file = None
+    def find_max_transformation_order(frame_similarities, frame_count, random_point):
+        # 각 프레임에서 가능한 최대 전환 횟수를 저장하는 리스트
+        max_transitions = [0] * frame_count
+        # 각 프레임에서 이전 프레임을 추적하는 리스트
+        previous_frame = [-1] * frame_count
+        # 각 프레임에서 이전 파일을 추적하는 리스트
+        previous_file = [None] * frame_count
+        # 각 프레임에서 시작 파일을 추적하는 리스트
+        start_file = [None] * frame_count
+
+        # 각 프레임에 대해 반복
+        for frame in range(frame_count):
+            # 각 파일에서 전환이 가능한 프레임을 찾음
+            for file in frame_similarities:
+                for next_frame, next_file in frame_similarities[file]:
+                    if next_frame >= frame + random_point and next_file != file:
+                        if next_frame < frame_count and max_transitions[next_frame] < max_transitions[frame] + 1:
+                            # 최대 전환 횟수를 갱신
+                            max_transitions[next_frame] = max_transitions[frame] + 1
+                            previous_frame[next_frame] = frame
+                            previous_file[next_frame] = next_file
+                            start_file[next_frame] = file
+
+        # 최대 전환 횟수를 가진 마지막 프레임을 찾음
+        last_frame = max(range(frame_count), key=lambda x: max_transitions[x])
         transformation_order = []
+        current_frame = last_frame
 
-        files = list(frame_similarities.keys())
+        # 최적 경로를 역추적
+        while current_frame != -1:
+            if previous_file[current_frame] is not None and start_file[current_frame] is not None:
+                transformation_order.append((current_frame, start_file[current_frame], previous_file[current_frame]))
+            current_frame = previous_frame[current_frame]
 
-        while current_frame < frame_count:
-            max_similar_frames = []
-            max_file = None
-
-            for file in files:
-                similar_frames = [frame for frame, pair in frame_similarities[file] if frame >= current_frame and (file != current_file)]
-                if len(similar_frames) > len(max_similar_frames):
-                    max_similar_frames = similar_frames
-                    max_file = file
-
-            if not max_similar_frames:
-                break
-
-            transformation_order.append((current_frame, max_file))
-            current_file = max_file
-            current_frame = max_similar_frames[0] + random_point
-
+        # 경로를 역순으로 정렬
+        transformation_order.reverse()
         return transformation_order
 
     data_list = [pd.read_csv(file) for file in csv_files]
@@ -179,10 +188,7 @@ def calculate_similarities(csv_files, video_files, video_file_mapping, width, he
 
                 for row1 in frame1_rows:
                     for row2 in frame2_rows:
-                        similarity, position_diff, size_diff = calculate_combined_similarity_with_filter(row1, row2,
-                                                                                                         width, height,
-                                                                                                         position_threshold,
-                                                                                                         size_threshold)
+                        similarity, position_diff, size_diff = calculate_combined_similarity_with_filter(row1, row2, width, height, position_threshold, size_threshold)
 
                         if similarity < threshold:
                             key = (frame_num, csv_files[i], csv_files[j])
@@ -221,31 +227,12 @@ def calculate_similarities(csv_files, video_files, video_file_mapping, width, he
         })
         verified_matches.append((frame_num, csv_file1, csv_file2, avg_similarity))
 
-
-
-
-    # for (frame_num, csv_file1, csv_file2), values in similar_frames.items():
-    #     for value in values:
-    #         similarity, _, _ = value
-    #         video1 = video_file_mapping[csv_file1]
-    #         video2 = video_file_mapping[csv_file2]
-    #
-    #         frame_numbers = [frame_num]
-    #
-    #         frames_data1 = process_video_frames(video1, frame_numbers)
-    #         frames_data2 = process_video_frames(video2, frame_numbers)
-    #
-    #         if len(frames_data1) == 1 and len(frames_data2) == 1:
-    #             match, _ = compare_faces([frames_data1[0], frames_data2[0]])
-    #             if match:
-    #                 verified_matches.append((frame_num, csv_file1, csv_file2, similarity))
-    #
-    #frame_similarities = get_similar_frames_dict({frame: [{"similar_files": (csv1, csv2)} for frame, csv1, csv2, _ in verified_matches]})
-    frame_similarities = get_similar_frames_dict({frame_num: [{"similar_files": (csv1, csv2)} for frame_num, csv1, csv2, _ in verified_matches]})
-
+    frame_similarities = get_similar_frames_dict(results)
+    #print("frame_similarities:",frame_similarities)
 
     frame_count = max(all_frame_numbers) + 1
 
-    max_transformation_order = find_max_transformation_order(frame_similarities, frame_count)
+    max_transformation_order = find_max_transformation_order(frame_similarities, frame_count, random_point)
+
 
     return results, max_transformation_order, verified_matches
