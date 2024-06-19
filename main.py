@@ -1,4 +1,5 @@
 import os
+import glob
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from pose.pose import process_videos as process_yolo_videos
@@ -21,19 +22,21 @@ THRESHOLD = 8
 POSITION_THRESHOLD = 0.05
 SIZE_THRESHOLD = 0.05
 AVG_SIMILARITY_THRESHOLD = 0.5
-RANDOM_POINT = 5
+RANDOM_POINT = 10
 
-video_files = [
-    "ive_baddie_1.mp4",
-    "ive_baddie_2.mp4",
-    "ive_baddie_3.mp4",
-    "ive_baddie_4.mp4",
-    "ive_baddie_5.mp4"
-]
+VIDEO_DIR = "./data"  # 비디오 파일들이 있는 폴더 경로
+VIDEO_EXTENSIONS = ['mp4', 'avi', 'mkv', 'mov']  # 지원하는 비디오 파일 확장자
+
+def get_video_files(video_dir, extensions):
+    video_files = []
+    for ext in extensions:
+        video_files.extend(glob.glob(os.path.join(video_dir, f"*.{ext}")))
+    return video_files
 
 async def main():
     loop = asyncio.get_event_loop()
     with ProcessPoolExecutor() as executor:
+        video_files = get_video_files(VIDEO_DIR, VIDEO_EXTENSIONS)
         yolo_future = loop.run_in_executor(executor, process_yolo_videos, video_files)
         # face_future = loop.run_in_executor(executor, process_video_multiprocessing, video_files)
 
@@ -56,7 +59,7 @@ async def main():
         csv_files, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
     )
 
-    max_transformation_order = find_max_transformation_order(frame_similarities, frame_count, 5)
+    max_transformation_order = find_max_transformation_order(frame_similarities, frame_count, RANDOM_POINT)
 
     print("최대 변환 순서:", max_transformation_order)
     print("검증된 매칭 결과:", verified_matches)

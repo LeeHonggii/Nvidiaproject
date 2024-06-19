@@ -18,7 +18,7 @@ THRESHOLD = 8
 POSITION_THRESHOLD = 0.05
 SIZE_THRESHOLD = 0.05
 AVG_SIMILARITY_THRESHOLD = 0.5
-RANDOM_POINT = 5
+RANDOM_POINT = 10
 
 # CSV 파일 및 비디오 파일 설정
 csv_files = [
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         csv_files, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
     )
 
-    max_transformation_order = find_max_transformation_order(frame_similarities, frame_count, 5)
+    max_transformation_order = find_max_transformation_order(frame_similarities, frame_count, RANDOM_POINT)
 
     print("최대 변환 순서:", max_transformation_order)
     print("검증된 매칭 결과:", verified_matches)
