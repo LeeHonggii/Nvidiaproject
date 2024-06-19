@@ -4,10 +4,9 @@ from concurrent.futures import ProcessPoolExecutor
 from pose.pose import process_videos as process_yolo_videos
 from pose.pose_similarity import calculate_similarities
 from pose.transformation import find_max_transformation_order
-from make_json import generate_json# from pose.face import process_video_multiprocessing, process_video_frames
+from make_json import generate_json, create_combined_video
 import torch
 import json
-
 
 def check_cuda():
     if torch.cuda.is_available():
@@ -32,7 +31,6 @@ video_files = [
     "ive_baddie_5.mp4"
 ]
 
-
 async def main():
     loop = asyncio.get_event_loop()
     with ProcessPoolExecutor() as executor:
@@ -49,7 +47,6 @@ async def main():
     # 자동 매핑된 CSV 파일 목록을 csv_files 리스트에 추가
     csv_files = [csv_video_mapping[video] for video in video_files]
     video_file_mapping = {csv: video for video, csv in csv_video_mapping.items()}
-
 
     # print("Face processing results:")
     # for result in face_processing_results:
@@ -72,6 +69,9 @@ async def main():
 
     print("JSON 파일이 생성되었습니다.")
 
+    # JSON 파일을 기반으로 비디오 합치기
+    create_combined_video('output_pose.json', 'combined_video.mp4')
+    print("최종 비디오가 생성되었습니다.")
 
 if __name__ == "__main__":
     check_cuda()

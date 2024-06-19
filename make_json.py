@@ -1,5 +1,5 @@
-import pandas as pd
 import json
+from moviepy.editor import VideoFileClip, concatenate_videoclips
 
 def generate_json(max_transformation_order, verified_matches, video_files, csv_files, video_file_mapping, best_vectors):
     num_streams = len(video_files)
@@ -54,3 +54,35 @@ def generate_json(max_transformation_order, verified_matches, video_files, csv_f
     }
 
     return json_data
+
+def create_combined_video(json_file, output_file):
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+
+    streams = data['streams']
+    cross_points = data['cross_points']
+
+    video_clips = [VideoFileClip(stream['file']) for stream in streams]
+
+    combined_clips = []
+    current_clip = video_clips[0].subclip(0, cross_points[0]['time_stamp'])
+
+    for i in range(len(cross_points)):
+        cross_point = cross_points[i]
+        next_stream = cross_point['next_stream']
+        next_clip_start = cross_point['time_stamp']
+
+        if i < len(cross_points) - 1:
+            next_clip_end = cross_points[i + 1]['time_stamp']
+        else:
+            next_clip_end = video_clips[next_stream].duration
+
+        next_clip = video_clips[next_stream].subclip(next_clip_start, next_clip_end)
+
+        combined_clips.append(current_clip)
+        combined_clips.append(next_clip)
+
+        current_clip = next_clip
+
+    final_clip = concatenate_videoclips(combined_clips)
+    final_clip.write_videofile(output_file, codec='libx264')
