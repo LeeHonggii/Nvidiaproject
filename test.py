@@ -3,7 +3,7 @@ import pandas as pd
 import json
 from pose.pose_similarity import calculate_similarities
 from pose.transformation import find_max_transformation_order
-from make_json import generate_json
+from make_json import generate_json,create_combined_video
 
 def check_cuda():
     if torch.cuda.is_available():
@@ -64,3 +64,7 @@ if __name__ == "__main__":
         json.dump(json_data, f, indent=4)
 
     print("JSON 파일이 생성되었습니다.")
+
+    # JSON 파일을 기반으로 비디오 합치기
+    create_combined_video('output_pose.json', 'combined_video.mp4')
+    print("최종 비디오가 생성되었습니다.")

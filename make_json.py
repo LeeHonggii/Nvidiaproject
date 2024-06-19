@@ -62,27 +62,27 @@ def create_combined_video(json_file, output_file):
     streams = data['streams']
     cross_points = data['cross_points']
 
-    video_clips = [VideoFileClip(stream['file']) for stream in streams]
+    video_clips = {stream['file']: VideoFileClip(stream['file']) for stream in streams}
 
     combined_clips = []
-    current_clip = video_clips[0].subclip(0, cross_points[0]['time_stamp'])
+    current_clip_info = cross_points[0]
+    current_clip = video_clips[streams[0]['file']].subclip(0, current_clip_info['time_stamp'])
+
+    combined_clips.append(current_clip)
 
     for i in range(len(cross_points)):
         cross_point = cross_points[i]
-        next_stream = cross_point['next_stream']
+        next_stream_file = streams[cross_point['next_stream']]['file']
         next_clip_start = cross_point['time_stamp']
 
         if i < len(cross_points) - 1:
             next_clip_end = cross_points[i + 1]['time_stamp']
         else:
-            next_clip_end = video_clips[next_stream].duration
+            next_clip_end = video_clips[next_stream_file].duration
 
-        next_clip = video_clips[next_stream].subclip(next_clip_start, next_clip_end)
-
-        combined_clips.append(current_clip)
+        next_clip = video_clips[next_stream_file].subclip(next_clip_start, next_clip_end)
         combined_clips.append(next_clip)
 
-        current_clip = next_clip
+    final_clip = concatenate_videoclips(combined_clips, method="compose")
+    final_clip.write_videofile(output_file, codec='libx264', fps=24)
 
-    final_clip = concatenate_videoclips(combined_clips)
-    final_clip.write_videofile(output_file, codec='libx264')
