@@ -64,6 +64,15 @@ def vector_difference(clip, v1, v2):
     length_1 = dist(w1, h1)
     length_2 = dist(w2, h2)
     ratio = length_1 / length_2
+    if ratio > 2:
+        # print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}. Reset to 1.5")
+        print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}.")
+        ratio = 2
+    if ratio < 0.5:
+        # print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}. Reset to 0.5")
+        print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}.")
+        ratio = 0.5
+
     rotate_angle = calculate_signed_angle((w1, h1), (w2, h2))
 
     return width, height, center_x, center_y, distance, diff_x, diff_y, ratio, rotate_angle, x1, y1, w1, h1, x12, y12, x2, y2, w2, h2, x22, y22
@@ -122,6 +131,127 @@ def get_adjusted_clip(clip, v1, v2):
     clip = clip.resize(newsize=(width, height))
 
     return clip
+
+
+def rotate_window(w, h, theta_degrees):
+    theta = radians(abs(theta_degrees))
+
+    w_prime = h / abs(sin(theta) + (h / w) * cos(theta))
+    # h_prime = h / abs((h / w) * sin(theta) + cos(theta))
+    scale_w = w / w_prime
+    # scale_h = h / h_prime
+
+    x1, y1 = 0, 0
+    x2, y2 = w, 0
+    x3, y3 = w, h
+    x4, y4 = 0, h
+
+    x1_new = x1 * cos(theta) - y1 * sin(theta)
+    y1_new = x1 * sin(theta) + y1 * cos(theta)
+
+    x2_new = x2 * cos(theta) - y2 * sin(theta)
+    y2_new = x2 * sin(theta) + y2 * cos(theta)
+
+    x3_new = x3 * cos(theta) - y3 * sin(theta)
+    y3_new = x3 * sin(theta) + y3 * cos(theta)
+
+    x4_new = x4 * cos(theta) - y4 * sin(theta)
+    y4_new = x4 * sin(theta) + y4 * cos(theta)
+
+    new_height = max(y1_new, y2_new, y3_new, y4_new) - min(y1_new, y2_new, y3_new, y4_new)
+    new_width = max(x1_new, x2_new, x3_new, x4_new) - min(x1_new, x2_new, x3_new, x4_new)
+
+    if x1_new * x2_new * x3_new * x4_new * y1_new * y2_new * y3_new * y4_new < 0:
+        print("!!!ALERT wrong new coord:", x1_new, x2_new, x3_new, x4_new, y1_new, y2_new, y3_new, y4_new, f"new_width: {new_width} new_height: {new_height}")
+    if new_width < 0 or new_height < 0:
+        print("!!!ALERT wrong new coord:", x1_new, x2_new, x3_new, x4_new, y1_new, y2_new, y3_new, y4_new, f"new_width: {new_width} new_height: {new_height}")
+
+    return scale_w, (new_width - w) / 2, (new_height - h) / 2
+
+
+def vector_interpolation(clip, v1, v2):
+    width, height, center_x, center_y, distance, diff_x, diff_y, ratio, rotate_angle, x1, y1, w1, h1, x12, y12, x2, y2, w2, h2, x22, y22 = vector_difference(clip, v1, v2)
+
+    # if x1 == 0:
+    #     if y1 == 0:
+    #         return v2
+    #     else:
+    #         print("!!!!ALERT strange JSON", v1, v2)
+
+    rscale_threshold = 1.10
+    rotate_threshold = 1.50
+
+    rescale_by_move_x = diff_x / width
+    rescale_by_move_y = diff_y / height
+    rescale_by_movement = max(abs(rescale_by_move_x), abs(rescale_by_move_y)) + 1
+    if rescale_by_movement > rscale_threshold:
+        print(f"big movement. rescale_by_movement:{rescale_by_movement:.3f}, rescale_by_move_x: {rescale_by_move_x:.3f}, rescale_by_move_y: {rescale_by_move_y:.3f}")
+
+    if ratio >= 1:
+        intr_vector = v1
+        ix, iy, iw, ih = intr_vector
+        ix -= (diff_x / 2)
+        iy -= (diff_y / 2)
+    else:
+        # print(f"!!!NOTICE: smaller ration case: {ratio:.2f}")
+        intr_vector = v2
+        ix, iy, iw, ih = intr_vector
+        ix += (diff_x / 2)
+        iy += (diff_y / 2)
+
+    rescale_by_rotation, rotated_window_move_x, rotated_window_move_y = rotate_window(width, height, rotate_angle)
+    if rescale_by_rotation > rotate_threshold:
+        print(f"big rotation. rescale_by_rotation: rotate_angle:{rotate_angle:.2f}, {rescale_by_rotation:.3f}")
+    # print(f"rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
+
+    # rescale_ratio = maxx(ratio, rescale_by_movement, rescale_by_rotation)
+    rescale_ratio = maxx(ratio, rescale_by_movement)
+    if rescale_ratio == rescale_by_movement:
+        print(f"NOTICE: rescale_by_movement({rescale_by_movement:.2f}) is bigger than ratio({ratio:.2f})")
+
+    ix *= rescale_ratio
+    iy *= rescale_ratio
+    iw *= rescale_ratio
+    ih *= rescale_ratio
+
+    centering_x = width * (rescale_ratio - 1) / 2
+    centering_y = height * (rescale_ratio - 1) / 2
+    ix -= centering_x
+    iy -= centering_y
+
+    # ix *= rescale_by_rotation
+    # iy *= rescale_by_rotation
+    # iw *= rescale_by_rotation
+    # ih *= rescale_by_rotation
+    #
+    # ix -= rotated_window_move_x
+    # iy -= rotated_window_move_y
+
+    if ix < 0 or iy < 0:
+        print(f"!!!!ALERT minus ix or iy, v1:{v1}, v2:{v2}, iv:{[ix, iy, iw, ih]}")
+        print(f"distance:{distance}, diff_x:{diff_x}, diff_y:{diff_y}, ratio:{ratio:.2f}, rescale_ratio:{rescale_ratio:.2f}, centering_x:{centering_x:.2f}, centering_y:{centering_y:.2f}")
+        print(f"rotate_angle:{rotate_angle:.2f}, rescale_by_rotation:{rescale_by_rotation:.2f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
+
+    if ix < min(x1, x2) :
+        print()
+        print(f"!!!!ALERT ix smaller by {min(x1, x2)-ix:.1f}, v1:{v1}, v2:{v2}, iv:{[ix, iy, iw, ih]}")
+        print(f"distance:{distance}, diff_x:{diff_x}, diff_y:{diff_y}, ratio:{ratio:.2f}, rescale_ratio:{rescale_ratio:.2f}, centering_x:{centering_x:.2f}, centering_y:{centering_y:.2f}")
+        print(f"rotate_angle:{rotate_angle:.2f}, rescale_by_rotation:{rescale_by_rotation:.2f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
+        print()
+
+    if ix > max(x1, x2):
+        print()
+        print(f"!!!!ALERT ix bigger by {ix-max(x1, x2):.1f}, v1:{v1}, v2:{v2}, iv:{[ix, iy, iw, ih]}")
+        print(f"distance:{distance}, diff_x:{diff_x}, diff_y:{diff_y}, ratio:{ratio:.2f}, rescale_ratio:{rescale_ratio:.2f}, centering_x:{centering_x:.2f}, centering_y:{centering_y:.2f}")
+        print(f"rotate_angle:{rotate_angle:.2f}, rescale_by_rotation:{rescale_by_rotation:.2f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
+        print()
+
+    if round(rotate_angle, 2) != 0:
+        print(f"!!!!ALERT rotate_angle not zero, v1:{v1}, v2:{v2}, iv:{[ix, iy, iw, ih]}")
+        print(f"distance:{distance}, diff_x:{diff_x}, diff_y:{diff_y}, ratio:{ratio:.2f}, rescale_ratio:{rescale_ratio:.2f}, centering_x:{centering_x:.2f}, centering_y:{centering_y:.2f}")
+        print(f"rotate_angle:{rotate_angle:.2f}, rescale_by_rotation:{rescale_by_rotation:.2f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
+
+    return [int(ix), int(iy), int(iw), int(ih)]
 
 
 def adjust_vector(clip, v1, v2, v3):
@@ -218,99 +348,6 @@ def adjust_vector(clip, v1, v2, v3):
 #     return [int(x4), int(y4), int(abs(x42 - x4)), int(abs(y42 - y4))]
 
 
-def rotate_window(w, h, theta_degrees):
-    theta = radians(abs(theta_degrees))
-
-    w_prime = h / sin(theta) + (h / w) * cos(theta)
-    # h_prime = h / abs((h / w) * sin(theta) + cos(theta))
-    scale_w = w / w_prime
-    # scale_h = h / h_prime
-
-    x1, y1 = 0, 0
-    x2, y2 = w, 0
-    x3, y3 = w, h
-    x4, y4 = 0, h
-
-    x1_new = x1 * cos(theta) - y1 * sin(theta)
-    y1_new = x1 * sin(theta) + y1 * cos(theta)
-
-    x2_new = x2 * cos(theta) - y2 * sin(theta)
-    y2_new = x2 * sin(theta) + y2 * cos(theta)
-
-    x3_new = x3 * cos(theta) - y3 * sin(theta)
-    y3_new = x3 * sin(theta) + y3 * cos(theta)
-
-    x4_new = x4 * cos(theta) - y4 * sin(theta)
-    y4_new = x4 * sin(theta) + y4 * cos(theta)
-
-    new_height = max(y1_new, y2_new, y3_new, y4_new) - min(y1_new, y2_new, y3_new, y4_new)
-    new_width = max(x1_new, x2_new, x3_new, x4_new) - min(x1_new, x2_new, x3_new, x4_new)
-
-    if x1_new * x2_new * x3_new * x4_new * y1_new * y2_new * y3_new * y4_new < 0:
-        print("!!!ALERT wrong new coord:", x1_new, x2_new, x3_new, x4_new, y1_new, y2_new, y3_new, y4_new, f"new_width: {new_width} new_height: {new_height}")
-    if new_width < 0 or new_height < 0:
-        print("!!!ALERT wrong new coord:", x1_new, x2_new, x3_new, x4_new, y1_new, y2_new, y3_new, y4_new, f"new_width: {new_width} new_height: {new_height}")
-
-    return scale_w, (new_width - w) / 2, (new_height - h) / 2
-
-
-def vector_interpolation(clip, v1, v2):
-    width, height, center_x, center_y, distance, diff_x, diff_y, ratio, rotate_angle, x1, y1, w1, h1, x12, y12, x2, y2, w2, h2, x22, y22 = vector_difference(clip, v1, v2)
-
-    rscale_threshold = 1.05
-    rotate_threshold = 1.10
-
-    rescale_by_move_x = diff_x / width
-    rescale_by_move_y = diff_y / height
-    rescale_by_movement = max(abs(rescale_by_move_x), abs(rescale_by_move_y)) + 1
-    if rescale_by_movement > rscale_threshold:
-        print(f"big movement. rescale_by_move_x: {rescale_by_move_x:.3f}, rescale_by_move_y: {rescale_by_move_y:.3f}")
-
-    if ratio >= 1:
-        intr_vector = v1
-        ix, iy, iw, ih = intr_vector
-        ix -= (diff_x / 2)
-        iy -= (diff_y / 2)
-    else:
-        intr_vector = v2
-        ix, iy, iw, ih = intr_vector
-        ix += (diff_x / 2)
-        iy += (diff_y / 2)
-
-    rescale_by_rotation, rotated_window_move_x, rotated_window_move_y = rotate_window(width, height, rotate_angle)
-    if rescale_by_rotation > rotate_threshold:
-        print(f"big rotation. rescale_by_rotation: rotate_angle:{rotate_angle:.2f}, {rescale_by_rotation:.3f}")
-    print(f"rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
-
-    # rescale_ratio = maxx(ratio, rescale_by_movement, rescale_by_rotation)
-    rescale_ratio = maxx(ratio, rescale_by_movement)
-
-    ix *= rescale_ratio
-    iy *= rescale_ratio
-    iw *= rescale_ratio
-    ih *= rescale_ratio
-
-    centering_x = width * (rescale_ratio - 1) / 2
-    centering_y = height * (rescale_ratio - 1) / 2
-    ix -= centering_x
-    iy -= centering_y
-
-    # ix *= rescale_by_rotation
-    # iy *= rescale_by_rotation
-    # iw *= rescale_by_rotation
-    # ih *= rescale_by_rotation
-    #
-    # ix -= rotated_window_move_x
-    # iy -= rotated_window_move_y
-
-    if ix < 0 or iy < 0:
-        print(f"!!!!ALERT minus, v1:{v1}, v2:{v2}, iv:{[ix, iy, iw, ih]}")
-        print(f"distance:{distance}, diff_x:{diff_x}, diff_y:{diff_y}, ratio:{ratio:.2f}, rescale_ratio:{rescale_ratio:.2f}, centering_x:{centering_x:.2f}, centering_y:{centering_y:.2f}")
-        print(f"rotate_angle:{rotate_angle:.2f}, rescale_by_rotation:{rescale_by_rotation:.2f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
-
-    return [int(ix), int(iy), int(iw), int(ih)]
-
-
 def find_in_between(sorted_list, x, y):
     start = bisect.bisect_left(sorted_list, x)
     end = bisect.bisect_left(sorted_list, y)
@@ -338,6 +375,13 @@ def line_to_vector(line1, line2):
 # quit()
 
 if __name__ == "__main__":
+    s1 = rotate_window(1920, 1080, 10)
+    s2 = rotate_window(1920, 1080, 30)
+    s3 = rotate_window(1920, 1080, 45)
+    s4 = rotate_window(1920, 1080, 60)
+    s5 = rotate_window(1920, 1080, 90)
+    print(s1, s2, s3, s4, s5)
+    quit()
     clip1 = VideoFileClip("data/test_video_4_out.mp4")
     clip2 = VideoFileClip("data/test_video_1_out.mp4")
 

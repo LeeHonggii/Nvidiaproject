@@ -8,7 +8,8 @@ from adjust import get_adjusted_clip, vector_interpolation, adjust_vector, find_
 
 begin_time = time.time()
 
-with open("data/output-jh5.json", "r", encoding="utf-8") as file:
+json_file = "data/output-full2.json"
+with open(json_file, "r", encoding="utf-8") as file:
     json_string_from_file = file.read()
 
 parameter = json.loads(json_string_from_file)
@@ -85,11 +86,18 @@ if "metric" not in parameter["meta_info"] or parameter["meta_info"]["metric"] ==
     for cross in cross_list:
         cross["time_stamp"] = cross["frame_id"] * frame_gap
 
-for i in range(len(cross_list)):
-    x1, y1, x12, y12 = cross_list[i]["vector_pairs"][0]["vector1"]
-    x2, y2, x22, y22 = cross_list[i]["vector_pairs"][0]["vector2"]
-    cross_list[i]["vector_pairs"][0]["vector1"] = [x1, min(y1, y12), abs(x12-x1), abs(y12-y1)]
-    cross_list[i]["vector_pairs"][0]["vector2"] = [x2, min(y2, y22), abs(x22-x2), abs(y22-y2)]
+
+if json_file not in ["data/output.json", "data/output-8.json", "data/output-30.json", "data/output-60.json", "data/output-full.json", "data/output-full1.json", "data/output-full2.json"]:
+    print("VECTOR Conversion to W/H")
+    for i in range(len(cross_list)):
+        x1, y1, x12, y12 = cross_list[i]["vector_pairs"][0]["vector1"]
+        x2, y2, x22, y22 = cross_list[i]["vector_pairs"][0]["vector2"]
+        cross_list[i]["vector_pairs"][0]["vector1"] = [x1, y1, x12-x1, y12-y1]
+        cross_list[i]["vector_pairs"][0]["vector2"] = [x2, y2, x22-x2, y22-y2]
+        if x12-x1 < 0:
+            print("!!!ALERT wrong coordination", x1, y1, x12-x1, y12-y1)
+            quit()
+
 
 last_cross = {
     "time_stamp": init_time + total_duration,
@@ -108,11 +116,12 @@ else:
     num_cross += 1
 # print(cross_list)
 
-
-with open("data/scene_list.json", "r", encoding="utf-8") as file:
-    scene_file = file.read()
-scene_json = json.loads(scene_file)
-scene_list = scene_json["scene_list"]
+if json_file != "data/output-jh5.json":
+    print("LOADING extra scene json")
+    with open("data/scene_list.json", "r", encoding="utf-8") as file:
+        scene_file = file.read()
+    scene_json = json.loads(scene_file)
+    scene_list = scene_json["scene_list"]
 # print(scene_list)
 # # for j in range(num_stream):
 # for j in range(1):
@@ -227,7 +236,7 @@ print(f"max_prop: {max_prop}")
 print(len(target_list))
 for i, clip in enumerate(target_list):
     print(f"Clip {i} duration: {clip.duration}")
-# quit()
+quit()
 concatenated_clip = concatenate_videoclips(target_list)
 if total_duration == int(stream_list[0].duration):
     final_video = concatenated_clip.set_audio(stream_list[0].audio)
