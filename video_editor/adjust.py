@@ -66,7 +66,10 @@ def vector_difference(clip, v1, v2):
     ratio = length_1 / length_2
     if ratio > 2:
         # print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}. Reset to 1.5")
-        print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}.")
+        print("==============")
+        print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}, length_1: {length_1:.2f}, length_2: {length_2:.2f}, w1: {w1:.2f}, h1: {h1:.2f}, w2: {w2:.2f}, h2: {h2:.2f}")
+        print(f"x1: {x1:.2f}, y1: {y1:.2f}, x12: {x12:.2f}, y12: {y12:.2f}, x2: {x2:.2f}, y2: {y2:.2f}, x22: {x22:.2f}, y22: {y22:.2f}")
+        print("==============")
         # ratio = 2
     if ratio < 0.5:
         # print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}. Reset to 0.5")
@@ -264,14 +267,19 @@ def vector_interpolation(clip, v1, v2):
     #     else:
     #         print("!!!!ALERT strange JSON", v1, v2)
 
-    rscale_threshold = 1.50
+    rscale_threshold = 1.10
     rotate_threshold = 1.50
     #
     rescale_by_move_x = diff_x / width * 2
     rescale_by_move_y = diff_y / height * 2
     rescale_by_movement = max(abs(rescale_by_move_x), abs(rescale_by_move_y)) + 1
-    # if rescale_by_movement > rscale_threshold:
-    #     print(f"big movement. rescale_by_movement:{rescale_by_movement:.3f}, rescale_by_move_x: {rescale_by_move_x:.3f}, rescale_by_move_y: {rescale_by_move_y:.3f}")
+    if rescale_by_movement > rscale_threshold:
+        print("==============")
+        print(f"big movement. rescale_by_movement:{rescale_by_movement:.3f}, distance: {distance:.2f}, diff_x: {diff_x}, diff_y: {diff_y}")
+        print(f"ratio: {ratio:.2f}, w1: {w1:.2f}, h1: {h1:.2f}, w2: {w2:.2f}, h2: {h2:.2f}")
+        print(f"x1: {x1:.2f}, y1: {y1:.2f}, x12: {x12:.2f}, y12: {y12:.2f}, x2: {x2:.2f}, y2: {y2:.2f}, x22: {x22:.2f}, y22: {y22:.2f}")
+        print("==============")
+    # print(f"big movement. rescale_by_movement:{rescale_by_movement:.3f}, distance: {distance:.2f}, diff_x: {diff_x}, diff_y: {diff_y}")
 
     if ratio >= 1:
         # print(f"ratio:{ratio:.3f}. rescale_by_movement:{rescale_by_movement:.3f}, ratio * rescale_by_movement: {ratio * rescale_by_movement:.3f}")
@@ -356,8 +364,8 @@ def vector_interpolation(clip, v1, v2):
 
     rescale_by_rotation, rotated_window_move_x, rotated_window_move_y = rotate_window(width, height, rotate_angle / 2)
     if rescale_by_rotation > rotate_threshold:
-        print(f"big rotation. rescale_by_rotation: rotate_angle:{rotate_angle:.2f}, {rescale_by_rotation:.3f}")
-    print(f"rotate_angle:{rotate_angle/2:.2f}, {rescale_by_rotation:.3f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
+        print(f"big rotation. rescale_by_rotation: rotate_angle:{rotate_angle:.2f}, rescale_by_rotation: {rescale_by_rotation:.3f}")
+    print(f"rotate_angle:{rotate_angle/2:.2f}, rescale_by_rotation: {rescale_by_rotation:.3f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
 
     ix *= rescale_by_rotation
     iy *= rescale_by_rotation
@@ -377,10 +385,10 @@ def vector_interpolation(clip, v1, v2):
         print(f"distance:{distance}, diff_x:{diff_x}, diff_y:{diff_y}, ratio:{ratio:.2f}, rescale_ratio:{rescale_ratio:.2f}, centering_x:{centering_x:.2f}, centering_y:{centering_y:.2f}")
         print(f"rotate_angle:{rotate_angle:.2f}, rescale_by_rotation:{rescale_by_rotation:.2f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
 
-    if round(rotate_angle, 2) != 0:
-        print(f"!!!!ALERT rotate_angle not zero, v1:{v1}, v2:{v2}, iv:{[ix, iy, iw, ih]}")
-        print(f"distance:{distance}, diff_x:{diff_x}, diff_y:{diff_y}, ratio:{ratio:.2f}, rescale_ratio:{rescale_ratio:.2f}, centering_x:{centering_x:.2f}, centering_y:{centering_y:.2f}")
-        print(f"rotate_angle:{rotate_angle:.2f}, rescale_by_rotation:{rescale_by_rotation:.2f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
+    # if round(rotate_angle, 2) != 0:
+    #     print(f"!!!!ALERT rotate_angle not zero, v1:{v1}, v2:{v2}, iv:{[ix, iy, iw, ih]}")
+    #     print(f"distance:{distance}, diff_x:{diff_x}, diff_y:{diff_y}, ratio:{ratio:.2f}, rescale_ratio:{rescale_ratio:.2f}, centering_x:{centering_x:.2f}, centering_y:{centering_y:.2f}")
+    #     print(f"rotate_angle:{rotate_angle:.2f}, rescale_by_rotation:{rescale_by_rotation:.2f}, rotated_window_move_x:{rotated_window_move_x:.2f}, rotated_window_move_y:{rotated_window_move_y:.2f}")
 
     return [int(ix), int(iy), int(iw), int(ih)]
 

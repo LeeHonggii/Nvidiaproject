@@ -8,7 +8,7 @@ from adjust import get_adjusted_clip, vector_interpolation, adjust_vector, find_
 
 begin_time = time.time()
 
-json_file = "data/output-full2.json"
+json_file = "data/output-jh6.json"
 with open(json_file, "r", encoding="utf-8") as file:
     json_string_from_file = file.read()
 
@@ -94,6 +94,8 @@ if json_file not in ["data/output.json", "data/output-8.json", "data/output-30.j
         x2, y2, x22, y22 = cross_list[i]["vector_pairs"][0]["vector2"]
         cross_list[i]["vector_pairs"][0]["vector1"] = [x1, y1, x12-x1, y12-y1]
         cross_list[i]["vector_pairs"][0]["vector2"] = [x2, y2, x22-x2, y22-y2]
+        # cross_list[i]["vector_pairs"][0]["vector1"] = [x1, y1, x12-x1, 0]
+        # cross_list[i]["vector_pairs"][0]["vector2"] = [x2, y2, x22-x2, 0]
         if x12-x1 < 0:
             print("!!!ALERT wrong coordination", x1, y1, x12-x1, y12-y1)
             quit()
@@ -112,11 +114,12 @@ last_cross = {
 cross_list.append(last_cross)
 if num_cross + 1 != len(cross_list):
     print("ALERT!!! invalid cross number:", num_cross)
+    # num_cross = len(cross_list) + 1
 else:
     num_cross += 1
 # print(cross_list)
 
-if json_file != "data/output-jh5.json":
+if json_file not in ["data/output-jh5.json", "data/output-jh6.json"]:
     print("LOADING extra scene json")
     with open("data/scene_list.json", "r", encoding="utf-8") as file:
         scene_file = file.read()
@@ -161,8 +164,9 @@ for i in range(num_cross):
             print("ALERT!!! no more prev clip or prev_stream")
             quit()
 
+        print("pre: ", prev_vector, curr_vector)
         intr_vector = vector_interpolation(stream_list[current_stream], prev_vector, curr_vector)
-        print(intr_vector, prev_vector, curr_vector)
+        print("post: ", intr_vector, prev_vector, curr_vector)
 
         if prev_vector != intr_vector:
             prev_clip = target_list.pop()
