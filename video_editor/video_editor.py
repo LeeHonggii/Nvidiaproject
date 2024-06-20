@@ -8,7 +8,7 @@ from adjust import get_adjusted_clip, vector_interpolation, adjust_vector, find_
 
 begin_time = time.time()
 
-json_file = "data/output-jh6.json"
+json_file = "data/output-full2.json"
 with open(json_file, "r", encoding="utf-8") as file:
     json_string_from_file = file.read()
 
@@ -158,7 +158,7 @@ for i in range(num_cross):
         clip = stream_list[current_stream].subclip(start_time, current_time)
         print(f"{len(target_list)}th clip added without change. stream: {current_stream}, start: {start_time:.2f}, end: {current_time:.2f}, cv: {prev_vector}, nv: {curr_vector}")
         target_list.append(clip)
-        # prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
+        prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
     else:
         if len(target_list) == 0 or prev_stream == num_stream:
             print("ALERT!!! no more prev clip or prev_stream")
@@ -195,7 +195,7 @@ for i in range(num_cross):
         if curr_vector == intr_vector:
             print(f"{len(target_list)}th clip added without change. stream: {current_stream}, start: {start_time:.2f}, end: {current_time:.2f}, cv: {prev_vector}, nv: {curr_vector}")
             target_list.append(curr_clip)
-            # prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
+            prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
         else:
             scenes_in_between = find_in_between(scene_list[current_stream], start_time, current_time)
             # print(scenes_in_between)
@@ -206,9 +206,10 @@ for i in range(num_cross):
                 # print(target_list)
                 num_prop_post += 1
                 # prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
-                # old_prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
-                # prev_vector = adjust_vector(curr_clip, intr_vector, curr_vector, old_prev_vector)
-                # print(f"old_prev_vector{old_prev_vector} new_prev_vector{prev_vector} intr_vector{intr_vector}, curr_vector{curr_vector}")
+                old_prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
+                # prev_vector = adjust_vector(intr_vector, curr_vector, old_prev_vector)
+                prev_vector = adjust_vector(prev_vector, curr_vector, old_prev_vector)
+                print(f"new_prev_vector{prev_vector}, old_prev_vector{old_prev_vector}, intr_vector{intr_vector}, curr_vector{curr_vector}")
             else:
                 # print(scenes_in_between)
                 scene_time = scenes_in_between[0]
@@ -222,12 +223,12 @@ for i in range(num_cross):
                 print(f"{len(target_list)}th clip 2nd part added without change. stream: {current_stream}, start: {scene_time:.2f}, end: {current_time:.2f}")
                 target_list.append(nochange_clip)
                 num_scen_post += 1
-                # prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
+                prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
 
     start_time = current_time
     prev_stream = current_stream
     current_stream = cross_list[i]["next_stream"]
-    prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
+    # prev_vector = cross_list[i]["vector_pairs"][0]["vector1"]
     curr_vector = cross_list[i]["vector_pairs"][0]["vector2"]
 
 

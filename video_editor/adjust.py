@@ -1,6 +1,7 @@
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from math import radians, degrees, sin, cos, acos
 from sympy import symbols, Eq, solve
+import numpy as np
 import bisect
 import random
 from line_add import prepare_sample
@@ -64,17 +65,6 @@ def vector_difference(clip, v1, v2):
     length_1 = dist(w1, h1)
     length_2 = dist(w2, h2)
     ratio = length_1 / length_2
-    if ratio > 2:
-        # print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}. Reset to 1.5")
-        print("==============")
-        print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}, length_1: {length_1:.2f}, length_2: {length_2:.2f}, w1: {w1:.2f}, h1: {h1:.2f}, w2: {w2:.2f}, h2: {h2:.2f}")
-        print(f"x1: {x1:.2f}, y1: {y1:.2f}, x12: {x12:.2f}, y12: {y12:.2f}, x2: {x2:.2f}, y2: {y2:.2f}, x22: {x22:.2f}, y22: {y22:.2f}")
-        print("==============")
-        # ratio = 2
-    if ratio < 0.5:
-        # print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}. Reset to 0.5")
-        print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}.")
-        # ratio = 0.5
 
     rotate_angle = calculate_signed_angle((w1, h1), (w2, h2))
 
@@ -281,6 +271,13 @@ def vector_interpolation(clip, v1, v2):
         print("==============")
     # print(f"big movement. rescale_by_movement:{rescale_by_movement:.3f}, distance: {distance:.2f}, diff_x: {diff_x}, diff_y: {diff_y}")
 
+    if ratio > 1.5 or 1 / ratio > 1.5:
+        # print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}. Reset to 1.5")
+        print("==============")
+        print(f"!!!ALERT too big size difference. ratio: {ratio:.2f}, length_1: {diff_x:.2f}, length_2: {diff_y:.2f}, w1: {w1:.2f}, h1: {h1:.2f}, w2: {w2:.2f}, h2: {h2:.2f}")
+        print(f"x1: {x1:.2f}, y1: {y1:.2f}, x12: {x12:.2f}, y12: {y12:.2f}, x2: {x2:.2f}, y2: {y2:.2f}, x22: {x22:.2f}, y22: {y22:.2f}")
+        print("==============")
+
     if ratio >= 1:
         # print(f"ratio:{ratio:.3f}. rescale_by_movement:{rescale_by_movement:.3f}, ratio * rescale_by_movement: {ratio * rescale_by_movement:.3f}")
         # intr_vector = v1
@@ -393,9 +390,9 @@ def vector_interpolation(clip, v1, v2):
     return [int(ix), int(iy), int(iw), int(ih)]
 
 
-def adjust_vector(clip, v1, v2, v3):
-    if v1 == v2:
-        return v3
+# def adjust_vector(clip, v1, v2, v3):
+#     if v1 == v2:
+#         return v3
 #
 #     x1, y1, w1, h1 = v1
 #     x2, y2, w2, h2 = v2
@@ -487,6 +484,65 @@ def adjust_vector(clip, v1, v2, v3):
 #     return [int(x4), int(y4), int(abs(x42 - x4)), int(abs(y42 - y4))]
 
 
+def transform_vector(v, translation, rotation_matrix, scale_factor):
+    # Apply translation
+    v_start = np.array([v[0], v[1]]) + translation
+    v_vector = np.array([v[2], v[3]])
+    v_end = v_start + v_vector
+
+    # Apply rotation
+    v_rotated_vector = np.dot(rotation_matrix, v_vector)
+    v_rotated_end = v_start + v_rotated_vector
+
+    # Apply scaling
+    v_scaled_vector = v_rotated_vector * scale_factor
+    v_scaled_end = v_start + v_scaled_vector
+
+    # Return the new vector in [x, y, w, h] format
+    new_vector = [v_start[0], v_start[1], v_scaled_vector[0], v_scaled_vector[1]]
+    return new_vector
+
+
+def adjust_vector(v1, v2, v3):
+    # Extract start points and components
+    # ix1 = (v1[0] + v2[0]) / 2
+    # iy1 = (v1[1] + v2[1]) / 2
+    # ix2 = (v1[0] + v2[2] + v2[0] + v2[2]) / 2
+    # iy2 = (v1[1] + v2[3] + v2[1] + v2[3]) / 2
+    # v1 = [ix1, iy1, ix2-ix1, iy2-iy1]
+
+    v1_start = np.array([v1[0], v1[1]])
+    v1_vector = np.array([v1[2], v1[3]])
+    v1_end = v1_start + v1_vector
+
+    v2_start = np.array([v2[0], v2[1]])
+    v2_vector = np.array([v2[2], v2[3]])
+    v2_end = v2_start + v2_vector
+
+    # Step 1: Translate v2 to v1's starting point
+    translation = v1_start - v2_start
+
+    # Step 2: Rotate v2 to match v1's direction
+    angle_v1 = np.arctan2(v1_vector[1], v1_vector[0])
+    angle_v2 = np.arctan2(v2_vector[1], v2_vector[0])
+    rotation_angle = angle_v1 - angle_v2
+
+    rotation_matrix = np.array([
+        [np.cos(rotation_angle), -np.sin(rotation_angle)],
+        [np.sin(rotation_angle), np.cos(rotation_angle)]
+    ])
+
+    # Step 3: Scale v2 to match v1's magnitude
+    magnitude_v1 = np.linalg.norm(v1_vector)
+    magnitude_v2 = np.linalg.norm(v2_vector)
+    scale_factor = magnitude_v1 / magnitude_v2
+
+    # Transform the third vector
+    x, y, w, h = transform_vector(v3, translation, rotation_matrix, scale_factor)
+
+    return [int(x), int(y), int(w), int(h)]
+
+
 def find_in_between(sorted_list, x, y):
     start = bisect.bisect_left(sorted_list, x)
     end = bisect.bisect_left(sorted_list, y)
@@ -537,6 +593,14 @@ if __name__ == "__main__":
     final_clip = concatenate_videoclips([clip1_new, clip2])
     output_path = f'data/vector_test_final_{random.randint(0, 999):03d}.mp4'
     final_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
+
+    # # Example usage
+    # v1 = [0, 0, 3, 4]  # First vector
+    # v2 = [1, 1, 3, 4]  # Second vector to be aligned with the first
+    # v3 = [2, 2, 1, 1]  # Third vector to be transformed
+    #
+    # new_v3 = match_and_transform(v1, v2, v3)
+    # print("Transformed third vector:", new_v3)
 
     # clip1 = VideoFileClip("data/line1.mp4")
     # clip2 = VideoFileClip("data/line2.mp4")
