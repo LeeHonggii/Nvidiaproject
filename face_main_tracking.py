@@ -5,16 +5,8 @@ from insightface.app import FaceAnalysis
 import json
 import csv
 import time
+from collections import defaultdict, deque
 from multiprocessing import Pool, cpu_count
-
-
-def in_triangle(px, py, vtx):
-    (x1, y1), (x2, y2), (x3, y3) = vtx
-    denominator = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
-    a = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / denominator
-    b = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / denominator
-    c = 1 - a - b
-    return 0 <= a <= 1 and 0 <= b <= 1 and 0 <= c <= 1
 
 
 def process_video(video_path):
@@ -40,96 +32,102 @@ def process_video(video_path):
     window_name = "Video"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
-    # Triangle vertices for the upper part of the video
-    top_left_triangle = [(0, 0), (width // 2, height // 2), (0, height // 2)]
-    top_right_triangle = [(width, 0), (width // 2, height // 2), (width, height // 2)]
-
-    center_x = width // 2
-    center_y = height // 2
+    line1_x = int(width * 0.35)
+    line2_x = int(width * 0.65)
+    line1_y = int(height * 0.25)
+    line2_y = int(height * 0.6)
+    target_x = (line1_x + line2_x) // 2
+    target_y = (line1_y + line2_y) // 2
 
     frame_count = 0
     face_positions = []
     face_recognitions = []
     eye_endpoint = []
 
-    while True:
+    while frame_count < total_frames:
         ret, frame = cap.read()
         if not ret:
             break
 
         frame_count += 1
+        if frame_count % 5 != 0:
+            continue
         display_frame = frame.copy()
 
-        # Reset variables for each batch of frames
+        cv2.line(display_frame, (line1_x, 0), (line1_x, height), (255, 255, 0), 2)
+        cv2.line(display_frame, (line2_x, 0), (line2_x, height), (255, 255, 0), 2)
+        cv2.line(display_frame, (0, line1_y), (width, line1_y), (255, 255, 0), 2)
+        cv2.line(display_frame, (0, line2_y), (width, line2_y), (255, 255, 0), 2)
+
         best_face = None
-        largest_area = 0
-        best_distance = float("inf")
+        largest_face = None
+        largest_face_size = 0  # To track the largest face size
 
-        if frame_count % 5 == 0:  # Process every 5th frame
-            faces = app.get(frame)
+        faces = app.get(frame)
+        for face in faces:
+            bbox = face["bbox"].astype(int)
+            face_size = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+            # Update largest face if this face is bigger
+            if face_size > largest_face_size:
+                largest_face_size = face_size
+                largest_face = face
 
-            for face in faces:
-                bbox = face["bbox"].astype(int)
-                x, y, w, h = bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]
-                face_area = w * h
-                face_center_x = x + w // 2
-                face_center_y = y + h // 2
-                distance = np.sqrt(
-                    (face_center_x - center_x) ** 2 + (face_center_y - center_y) ** 2
-                )
+            face_center_x = bbox[0] + (bbox[2] - bbox[0]) // 2
+            face_center_y = bbox[1] + (bbox[3] - bbox[1]) // 2
 
-                if face_area > 30000:
-                    if face_area > largest_area:
-                        largest_area = face_area
-                        best_face = face
-                elif face_area < 1000:
-                    if distance < best_distance:
-                        best_distance = distance
-                        best_face = face
-                else:
-                    if in_triangle(
-                        face_center_x, face_center_y, top_left_triangle
-                    ) or in_triangle(face_center_x, face_center_y, top_right_triangle):
-                        if face_area > largest_area:
-                            largest_area = face_area
-                            best_face = face
+            if (
+                line1_x <= face_center_x <= line2_x
+                and line1_y <= face_center_y <= line2_y
+            ):
+                distance = abs(face_center_x - target_x) + abs(face_center_y - target_y)
+                if best_face is None or distance < best_face[1]:
+                    best_face = (face, distance)
 
-            if best_face:
-                bbox = best_face["bbox"].astype(int)
-                cv2.rectangle(
-                    display_frame,
-                    (bbox[0], bbox[1]),
-                    (bbox[2], bbox[3]),
-                    (0, 255, 0),
-                    2,
-                )
-                if "landmark_2d_106" in best_face:
-                    lmk = best_face["landmark_2d_106"]
-                    lmk = np.round(lmk).astype(np.int64)
-                    for point in lmk:
-                        cv2.circle(
-                            display_frame,
-                            tuple(point),
-                            3,
-                            (200, 160, 75),
-                            1,
-                            cv2.LINE_AA,
-                        )
+        if best_face is None and largest_face is not None:
+            best_face = (
+                largest_face,
+                0,
+            )  # Use the largest face if no face found in area
 
-                    current_frame_positions = [
-                        (bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1])
-                    ]
-                    current_frame_face_data = [lmk.tolist()]
-                    eye_point1 = tuple(lmk[35])
-                    eye_point2 = tuple(lmk[93])
-                    current_frame_eye_data = [(eye_point1, eye_point2)]
+        if best_face:
+            face = best_face[0]
+            bbox = face["bbox"].astype(int)
+            cv2.rectangle(
+                display_frame,
+                (bbox[0], bbox[1]),
+                (bbox[2], bbox[3]),
+                (0, 255, 0),
+                2,
+            )
+            if "landmark_2d_106" in face:
+                lmk = face["landmark_2d_106"]
+                lmk = np.round(lmk).astype(np.int64)
+                for point in lmk:
+                    cv2.circle(
+                        display_frame, tuple(point), 2, (0, 0, 255), -1, cv2.LINE_AA
+                    )
+                current_frame_positions = [
+                    (bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1])
+                ]
+                current_frame_face_data = [lmk.tolist()]
+                eye_point1 = tuple(lmk[35])
+                eye_point2 = tuple(lmk[93])
+                current_frame_eye_data = [(eye_point1, eye_point2)]
 
-                    face_positions.append(current_frame_positions)
-                    eye_endpoint.append(current_frame_eye_data)
-                    face_recognitions.append(current_frame_face_data)
+                face_positions.append(current_frame_positions)
+                eye_endpoint.append(current_frame_eye_data)
+                face_recognitions.append(current_frame_face_data)
+
+        else:
+            # Append zeros if no face is detected
+            # Ensure that the structure matches the expected unpacking structure in CSV writing.
+            face_positions.append(
+                [(0, 0, 0, 0)]
+            )  # Enclose in an additional list to match structure
+            eye_endpoint.append([((0, 0), (0, 0))])  # Use tuple of tuples
+            face_recognitions.append([[]])  # This already matches expected structure
 
         cv2.imshow(window_name, display_frame)
-
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
@@ -142,7 +140,9 @@ def process_video(video_path):
         csvwriter = csv.writer(csvfile)
         csvwriter.writerow(["frame", "x", "y", "w", "h", "eye_point1", "eye_point2"])
         for i, (positions, eye_points) in enumerate(zip(face_positions, eye_endpoint)):
-            for (x, y, w, h), (eye_point1, eye_point2) in zip(positions, eye_points):
+            for position, eye_point in zip(positions, eye_points):
+                x, y, w, h = position  # Unpack position
+                eye_point1, eye_point2 = eye_point  # Unpack eye points
                 csvwriter.writerow([i * 5, x, y, w, h, eye_point1, eye_point2])
 
     return (
@@ -192,6 +192,7 @@ def intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2):
     inter_y1 = max(y1, y2)
     inter_x2 = min(x1_max, x2_max)
     inter_y2 = min(y1_max, y2_max)
+
     inter_w = max(0, inter_x2 - inter_x1)
     inter_h = max(0, inter_y2 - inter_y1)
 
@@ -200,8 +201,10 @@ def intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2):
     rect2_area = w2 * h2
     union_area = rect1_area + rect2_area - inter_area
 
-    iou = inter_area / union_area
+    if union_area == 0:
+        return 0.0  # Return 0 IOU to indicate no overlap or undefined case
 
+    iou = inter_area / union_area
     return iou
 
 
@@ -255,6 +258,7 @@ def find_matching_faces(csv_files):
 
     matched_faces = []
     min_length = min(len(positions) for positions in all_face_positions)
+    last_matched_index = 0  # Track the last matched file index
 
     for frame_index in range(min_length):
         frame_faces = [
@@ -267,10 +271,19 @@ def find_matching_faces(csv_files):
 
         current_frame = frame_index * 5
 
+        # Re-arrange faces to start matching from the last matched index
+        arranged_faces = (
+            frame_faces[last_matched_index:] + frame_faces[:last_matched_index]
+        )
+        arranged_eyes = (
+            frame_eyes[last_matched_index:] + frame_eyes[:last_matched_index]
+        )
+
         face_pairs = []
-        for i in range(len(frame_faces)):
-            for face1 in frame_faces[i]:
-                face_pairs.append((i, face1))
+        for i, faces in enumerate(arranged_faces):
+            adjusted_index = (last_matched_index + i) % len(csv_files)
+            for face in faces:
+                face_pairs.append((adjusted_index, face))
 
         face_pairs_count = len(face_pairs)
         for i in range(face_pairs_count):
@@ -278,21 +291,122 @@ def find_matching_faces(csv_files):
                 index1, face1 = face_pairs[i]
                 index2, face2 = face_pairs[j]
 
-                if frame_eyes[index1] and frame_eyes[index2]:
+                eye1 = arranged_eyes[index1 - last_matched_index]
+                eye2 = arranged_eyes[index2 - last_matched_index]
+
+                # Check if the faces or eyes are zero (no detection)
+                if (
+                    face1 == [(0, 0, 0, 0)]
+                    or face2 == [(0, 0, 0, 0)]
+                    or eye1 == [((0, 0), (0, 0))]
+                    or eye2 == [((0, 0), (0, 0))]
+                ):
+                    continue  # Skip processing for zero data
+
+                if eye1 and eye2:
                     x1, y1, w1, h1 = face1
                     x2, y2, w2, h2 = face2
+
+                    area1 = w1 * h1
+                    area2 = w2 * h2
+
+                    if area1 > 0 and area2 > 0:
+                        area_ratio = max(area1, area2) / min(area1, area2)
+                        if area_ratio > 1.5:
+                            continue  # Skip this frame if area size difference is more than 1.5
+
                     iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
                     if iou_score > 0.6:
-                        matched_faces.append((current_frame, index1, index2))
+                        matched_faces.append(
+                            (
+                                current_frame,
+                                index1,
+                                index2,
+                                iou_score,
+                                eye1,
+                                eye2,
+                            )
+                        )
+                        last_matched_index = index2  # Update last matched index
                         print(
                             f"Matched Face at Frame {current_frame}: IOU {iou_score:.2f}"
                         )
                         break  # Exit loop once a match is found in this frame
-            else:
-                continue
-            break
+                else:
+                    continue
+                break
 
     return matched_faces
+
+
+def build_transition_graph(matched_faces, csv_files):
+
+    graph = defaultdict(list)
+    for frame, index1, index2, iou_score, eye1, eye2 in matched_faces:
+        graph[(frame, index1)].append(index2)
+        graph[(frame, index2)].append(index1)  # Assuming bidirectional interest
+
+    return graph
+
+
+def find_max_transition_sequence(graph, start_index, csv_files):
+    # Using a breadth-first search (BFS) to find the longest path in terms of remaining viable transitions
+    max_path = []
+    visited = set()
+    queue = deque([(start_index, [start_index])])
+
+    while queue:
+        current_index, path = queue.popleft()
+        if len(path) > len(max_path):
+            max_path = path
+        for neighbor in graph[(path[-1], current_index)]:
+            if neighbor not in path:  # Avoid cycles
+                new_path = path + [neighbor]
+                queue.append((neighbor, new_path))
+                visited.add(neighbor)
+
+    # Convert path indexes back to filenames with frames
+    result_path = [
+        (csv_files[path[i]], csv_files[path[i + 1]]) for i in range(len(path) - 1)
+    ]
+    return result_path
+
+
+def process_matches(matched_faces, video_files):
+    graph = build_transition_graph(matched_faces, video_files)
+    # Assuming the matches include frame numbers and IOU scores now
+    verified_matches = [
+        (frame, video_files[index1], video_files[index2], iou, eye1, eye2)
+        for frame, index1, index2, iou, eye1, eye2 in matched_faces
+    ]
+
+    # Find the longest sequence starting from the first match's index if not specific starting point given
+    max_transition_sequence = []
+    if verified_matches:
+        start_index = verified_matches[0][1]  # Starting from the first index
+        max_transition_sequence = find_max_transition_sequence(
+            graph, start_index, csv_files
+        )
+
+    return verified_matches, max_transition_sequence
+
+
+def save_verified_matches(verified_matches, filename="verified_matches.csv"):
+    with open(filename, "w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(["검증된 매칭 결과:"])
+        for match in verified_matches:
+            writer.writerow(match)
+
+
+def save_max_transition_sequence(
+    max_transition_sequence, filename="max_transition_sequence.csv"
+):
+    with open(filename, "w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(["최대 변환 순서:"])
+        for transition in max_transition_sequence:
+            writer.writerow(transition)
 
 
 def create_json_structure(
@@ -338,7 +452,7 @@ def create_json_structure(
     # Define cross_points
     cross_points = []
 
-    for idx, (frame_id, i, j) in enumerate(matched_faces):
+    for idx, (frame_id, i, j, iou_score, eye1, eye2) in enumerate(matched_faces):
         index1 = frame_id // 5
         if 0 <= index1 < len(all_eye_endpoints[i]) and 0 <= index1 < len(
             all_eye_endpoints[j]
@@ -382,7 +496,7 @@ def write_json_file(parameter, output_file):
 
 
 def frame_difference_detection(
-    video_path, threshold=60, resize_factor=1, aggregation_window=18
+    video_path, threshold=20, resize_factor=1, aggregation_window=18
 ):
     frame_list = []
     cap = cv2.VideoCapture(video_path)
@@ -451,12 +565,12 @@ if __name__ == "__main__":
 
     folder_path = "./data/"  # Folder path for storing videos
     video_files = [
-        "pose_sync_ive_baddie_1.mp4",
-        "pose_sync_ive_baddie_2.mp4",
-        # "ive_baddie_3.mp4",
-        # "ive_baddie_4.mp4",
-        # "ive_baddie_5.mp4",
-        # "ive_baddie_6.mp4",
+        "ive_baddie_1.mp4",
+        "ive_baddie_2.mp4",
+        "ive_baddie_3.mp4",
+        "ive_baddie_4.mp4",
+        "ive_baddie_5.mp4",
+        "ive_baddie_6.mp4",
     ]
     video_paths = [os.path.join(folder_path, video_file) for video_file in video_files]
     results = process_video_multiprocessing(video_paths)
@@ -492,6 +606,14 @@ if __name__ == "__main__":
     processed_time = finished_time - start_time
     print("------------------------------------------------------------")
     print("processed_time : ", processed_time)
+
+    matched_faces = find_matching_faces(csv_files)  # Ensure this includes IOU scores
+    verified_matches, max_transition_sequence = process_matches(
+        matched_faces, video_files
+    )
+
+    save_verified_matches(verified_matches)
+    save_max_transition_sequence(max_transition_sequence)
 
     scene_list = []
 
