@@ -236,7 +236,7 @@ print(f"max_prop: {max_prop}")
 print(len(target_list))
 for i, clip in enumerate(target_list):
     print(f"Clip {i} duration: {clip.duration}")
-quit()
+# quit()
 concatenated_clip = concatenate_videoclips(target_list)
 if total_duration == int(stream_list[0].duration):
     final_video = concatenated_clip.set_audio(stream_list[0].audio)
