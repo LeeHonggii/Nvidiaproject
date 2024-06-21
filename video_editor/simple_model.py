@@ -16,7 +16,9 @@ maxx = max
 parameter = {
    "meta_info" : {
       "num_stream": 6,
-      "metric": "time",
+      "metric": "time",         # "time" or "frame" default frame
+      "vector": "wh",           #"wh" or "point" defualt points
+      "rotation": "NO",         #"YES" or "NO", force surpress rotation for debugging. default YES
       "frame_rate": 29.97,
       "num_frames": 0,         # (2 * 60 + 40 + 0 / 60) * 29.97,
       "init_time": 0,          # start at somewhere in the middle
@@ -60,14 +62,14 @@ parameter = {
    ],
    "cross_points": [
    ],
-   "scene_list": [
-      [100, 500, 1000, 1500],    # scene list for the stream 0
-      [200, 500, 1500, 3000],    # scene list for the stream 1
-      [100, 510, 1000, 1500],    # scene list for the stream 2
-      [400, 500, 1000, 1500],    # scene list for the stream 3
-      [150, 500, 1000, 1500],    # scene list for the stream 4
-      [800, 500, 1000, 1500]     # scene list for the stream 5
-   ]
+   # "scene_list": [
+   #    [100, 500, 1000, 1500],    # scene list for the stream 0
+   #    [200, 500, 1500, 3000],    # scene list for the stream 1
+   #    [100, 510, 1000, 1500],    # scene list for the stream 2
+   #    [400, 500, 1000, 1500],    # scene list for the stream 3
+   #    [150, 500, 1000, 1500],    # scene list for the stream 4
+   #    [800, 500, 1000, 1500]     # scene list for the stream 5
+   # ]
 }
 
 num_stream = parameter["meta_info"]["num_stream"]
@@ -273,6 +275,11 @@ for t in range(t_size):
 
 parameter["cross_points"] = cross_list
 parameter["meta_info"]["num_cross"] = len(cross_list)
+
+with open("data/scene_list.json", "r", encoding="utf-8") as file:
+    scene_file = file.read()
+scene_json = json.loads(scene_file)
+parameter["scene_list"] = scene_json["scene_list"]
 
 json_dump = json.dumps(parameter, ensure_ascii=False, indent=4)
 
