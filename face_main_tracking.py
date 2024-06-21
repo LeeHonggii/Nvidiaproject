@@ -382,15 +382,9 @@ def process_matches(matched_faces, video_files):
         for frame, index1, index2, iou, eye1, eye2 in matched_faces
     ]
 
-    # Find the longest sequence starting from the first match's index if not specific starting point given
-    max_transition_sequence = []
-    if verified_matches:
-        start_index = verified_matches[0][1]  # Starting from the first index
-        max_transition_sequence = find_max_transition_sequence(
-            graph, start_index, csv_files
-        )
+    print(verified_matches)
 
-    return verified_matches, max_transition_sequence
+    return verified_matches
 
 
 def save_verified_matches(verified_matches, filename="verified_matches.csv"):
@@ -567,12 +561,12 @@ if __name__ == "__main__":
 
     folder_path = "./data/"  # Folder path for storing videos
     video_files = [
-        "ive_baddie_1.mp4",
-        "ive_baddie_2.mp4",
-        "ive_baddie_3.mp4",
-        "ive_baddie_4.mp4",
-        "ive_baddie_5.mp4",
-        "ive_baddie_6.mp4",
+        "pose_sync_ive_baddie_1.mp4",
+        "pose_sync_ive_baddie_2.mp4",
+        # "ive_baddie_3.mp4",
+        # "ive_baddie_4.mp4",
+        # "ive_baddie_5.mp4",
+        # "ive_baddie_6.mp4",
     ]
     video_paths = [os.path.join(folder_path, video_file) for video_file in video_files]
     results = process_video_multiprocessing(video_paths)
@@ -610,12 +604,9 @@ if __name__ == "__main__":
     print("processed_time : ", processed_time)
 
     matched_faces = find_matching_faces(csv_files)  # Ensure this includes IOU scores
-    verified_matches, max_transition_sequence = process_matches(
-        matched_faces, video_files
-    )
+    verified_matches = process_matches(matched_faces, video_files)
 
     save_verified_matches(verified_matches)
-    save_max_transition_sequence(max_transition_sequence)
 
     scene_list = []
 
