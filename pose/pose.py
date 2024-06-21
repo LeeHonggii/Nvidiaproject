@@ -44,7 +44,7 @@ def process_video(video_path):
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
-        print(f"Error: Could not open video {video_path}.")
+        # print(f"Error: Could not open video {video_path}.")
         return None
 
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -62,9 +62,8 @@ def process_video(video_path):
 
     while cap.isOpened():
         success, frame = cap.read()
-
         if success:
-            results = model.track(frame, conf=0.5)
+            results = model.track(frame, conf=0.5,verbose=False)
 
             if results:
                 annotated_frame = results[0].plot()
@@ -73,23 +72,23 @@ def process_video(video_path):
 
                 frame_data.append((frame_number, faces, bodies, legs))
                 out.write(annotated_frame)
-                cv2.imshow("YOLOv8 Tracking", annotated_frame)
-            else:
-                print(f"Warning: No results found for frame {frame_number}.")
+                # cv2.imshow("YOLOv8 Tracking", annotated_frame)
+            # else:
+                # print(f"Warning: No results found for frame {frame_number}.")
 
             frame_number += 1
 
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
+            # if cv2.waitKey(1) & 0xFF == ord("q"):
+            #     break
         else:
             break
 
     cap.release()
     out.release()
-    cv2.destroyAllWindows()
+    # cv2.destroyAllWindows()
 
     save_to_csv(output_csv_path, frame_data)
-    print(f"Processed {video_path} and saved to {output_csv_path} and {output_video_path}.")
+    # print(f"Processed {video_path} and saved to {output_csv_path} and {output_video_path}.")
 
     return output_csv_path
 

@@ -141,7 +141,7 @@ def calculate_similarities(csv_files, width, height, threshold, position_thresho
         for j, data2 in enumerate(data_list) if i < j
     )
 
-    progress = tqdm(total=total_comparisons, desc="Comparing frames")
+    progress = tqdm(total=total_comparisons, desc="전환점을 찾고있습니다")
 
     for frame_num in all_frame_numbers:
         for i, data1 in enumerate(data_list):

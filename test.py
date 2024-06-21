@@ -22,28 +22,28 @@ RANDOM_POINT = 10
 
 # CSV 파일 및 비디오 파일 설정
 csv_files = [
-    "ive_baddie_1.csv",
-    "ive_baddie_2.csv",
-    "ive_baddie_3.csv",
-    "ive_baddie_4.csv",
-    "ive_baddie_5.csv"
+    "sync_bts_fakelove_1.csv",
+    "sync_bts_fakelove_2.csv",
+    "sync_bts_fakelove_3.csv",
+    "sync_bts_fakelove_4.csv",
+    "sync_bts_fakelove_5.csv"
 ]
 
 video_files = [
-    "ive_baddie_1.mp4",
-    "ive_baddie_2.mp4",
-    "ive_baddie_3.mp4",
-    "ive_baddie_4.mp4",
-    "ive_baddie_5.mp4"
+    "sync_bts_fakelove_1.mp4",
+    "sync_bts_fakelove_2.mp4",
+    "sync_bts_fakelove_3.mp4",
+    "sync_bts_fakelove_4.mp4",
+    "sync_bts_fakelove_5.mp4"
 ]
 
 # 비디오 파일과 CSV 파일 매핑
 video_file_mapping = {
-    "ive_baddie_1.csv": "ive_baddie_1.mp4",
-    "ive_baddie_2.csv": "ive_baddie_2.mp4",
-    "ive_baddie_3.csv": "ive_baddie_3.mp4",
-    "ive_baddie_4.csv": "ive_baddie_4.mp4",
-    "ive_baddie_5.csv": "ive_baddie_5.mp4"
+    "sync_bts_fakelove_1.csv": "sync_bts_fakelove_1.mp4",
+    "sync_bts_fakelove_2.csv": "sync_bts_fakelove_2.mp4",
+    "sync_bts_fakelove_3.csv": "sync_bts_fakelove_3.mp4",
+    "sync_bts_fakelove_4.csv": "sync_bts_fakelove_4.mp4",
+    "sync_bts_fakelove_5.csv": "sync_bts_fakelove_5.mp4"
 }
 
 if __name__ == "__main__":
