@@ -291,8 +291,8 @@ def find_matching_faces(csv_files):
                 index1, face1 = face_pairs[i]
                 index2, face2 = face_pairs[j]
 
-                eye1 = arranged_eyes[index1 - last_matched_index]
-                eye2 = arranged_eyes[index2 - last_matched_index]
+                eye1 = arranged_eyes[index1 - last_matched_index][0]
+                eye2 = arranged_eyes[index2 - last_matched_index][0]
 
                 # Check if the faces or eyes are zero (no detection)
                 if (
@@ -317,14 +317,16 @@ def find_matching_faces(csv_files):
 
                     iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
                     if iou_score > 0.6:
+                        eye1_vector = [eye1[0][0], eye1[0][1], eye1[1][0], eye1[1][1]]
+                        eye2_vector = [eye2[0][0], eye2[0][1], eye2[1][0], eye2[1][1]]
                         matched_faces.append(
                             (
                                 current_frame,
                                 index1,
                                 index2,
                                 iou_score,
-                                eye1,
-                                eye2,
+                                eye1_vector,
+                                eye2_vector,
                             )
                         )
                         last_matched_index = index2  # Update last matched index
