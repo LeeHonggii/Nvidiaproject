@@ -248,7 +248,7 @@ def calculate_cosine_similarity(v1, v2):
     return dot_product / (norm_v1 * norm_v2)
 
 
-def find_matching_faces(csv_files):
+def find_matching_faces(csv_files, THRESHOLD = 0.6):
     all_face_positions = []
     all_eye_endpoints = []
     for csv_file in csv_files:
@@ -316,7 +316,7 @@ def find_matching_faces(csv_files):
                             continue  # Skip this frame if area size difference is more than 1.5
 
                     iou_score = intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2)
-                    if iou_score > 0.6:
+                    if iou_score > THRESHOLD:
                         eye1_vector = [eye1[0][0], eye1[0][1], eye1[1][0], eye1[1][1]]
                         eye2_vector = [eye2[0][0], eye2[0][1], eye2[1][0], eye2[1][1]]
                         matched_faces.append(
@@ -382,15 +382,7 @@ def process_matches(matched_faces, video_files):
         for frame, index1, index2, iou, eye1, eye2 in matched_faces
     ]
 
-    # Find the longest sequence starting from the first match's index if not specific starting point given
-    max_transition_sequence = []
-    if verified_matches:
-        start_index = verified_matches[0][1]  # Starting from the first index
-        max_transition_sequence = find_max_transition_sequence(
-            graph, start_index, csv_files
-        )
-
-    return verified_matches, max_transition_sequence
+    return verified_matches
 
 
 def save_verified_matches(verified_matches, filename="verified_matches.csv"):

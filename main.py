@@ -5,6 +5,7 @@ from pose.pose import process_videos as process_yolo_videos
 from pose.pose_similarity import calculate_similarities
 from pose.transformation import find_max_transformation_order
 from make_json import generate_json, create_combined_video
+from pose.face import process_video_multiprocessing, find_matching_faces, process_matches, save_verified_matches, frame_difference_detection
 import torch
 import json
 
@@ -37,6 +38,27 @@ def get_video_files(video_dir, extensions):
     return video_files
 
 
+def find_intersections(face_verified_matches, results, frame_similarities, frame_count):
+    # 교집합 저장할 리스트 초기화
+    updated_frame_similarities = {}
+    updated_frame_count = {}
+
+    # face_verified_matches의 구조가 [(frame_number, filename1, filename2, face_iou, eye_vector1, eye_vector2), ...] 라고 가정
+    face_match_set = {(frame_number, filename1, filename2) for (frame_number, filename1, filename2, face_iou, eye_vector1, eye_vector2) in face_verified_matches}
+
+    for frame_num, result_list in results.items():
+        for result in result_list:
+            csv_file1, csv_file2 = result["similar_files"]
+            if (frame_num, csv_file1, csv_file2) in face_match_set or (frame_num, csv_file2, csv_file1) in face_match_set:
+                if frame_num not in updated_frame_similarities:
+                    updated_frame_similarities[frame_num] = []
+                updated_frame_similarities[frame_num].append(result)
+                if frame_num not in updated_frame_count:
+                    updated_frame_count[frame_num] = 0
+                updated_frame_count[frame_num] += 1
+
+    return updated_frame_similarities, updated_frame_count
+
 def main():
     with ProcessPoolExecutor() as executor:
         print("영상 분석 시작합니다")
@@ -47,9 +69,14 @@ def main():
             return
 
         csv_video_mapping = process_yolo_videos(video_files)
+        # face detection multiprocessing
+        csv_face_mapping = process_video_multiprocessing(video_files)
         if not csv_video_mapping:
             print("YOLO processing did not return any results.")
             return
+        if not csv_face_mapping:
+            print("Face Detection did not return any results.")
+
     print("분석을 종료합니다")
     #print("CSV and Video file mapping (YOLO):")
     #for video, csv in csv_video_mapping.items():
@@ -60,14 +87,31 @@ def main():
     if not csv_files:
         print("No CSV files mapped from the videos.")
         return
+    # 자동 매핑된 csv 파일 목록을 csv_files 리스트에 추가
+    csv_face_files = [csv_face_mapping[video] for video in video_files if video in csv_face_mapping]
+    if not csv_face_files:
+        print("No CSV files mapped from the videos.")
+    
+    # face csv 에서 나온 결괏값을 기반으로 best matching point 찾기
+    matched_faces = find_matching_faces(csv_face_files)
+    # 검증된 face match 기록 찾기
+    face_verified_matches = process_matches(matched_faces, video_files)
+    # csv파일로 저장 
+    save_verified_matches(face_verified_matches)
 
     video_file_mapping = {csv: video for video, csv in csv_video_mapping.items()}
+
+    frame_number, filename1, filename2, face_iou, eye_vector1, eye_vector2 = face_verified_matches
 
     results, verified_matches, frame_similarities, frame_count, best_vectors = calculate_similarities(
         csv_files, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
     )
 
-    max_transformation_order = find_max_transformation_order(frame_similarities, frame_count, RANDOM_POINT)
+    # TODO : 교집합 찾기
+
+    n_frame_similarities, n_frame_count = find_intersections(face_verified_matches, results)
+
+    max_transformation_order = find_max_transformation_order(n_frame_similarities, n_frame_count, RANDOM_POINT)
 
     #print("최대 변환 순서:", max_transformation_order)
     #print("검증된 매칭 결과:", verified_matches)
