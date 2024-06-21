@@ -3,6 +3,7 @@ import numpy as np
 import os
 from insightface.app import FaceAnalysis
 import csv
+from collections import defaultdict, deque
 from multiprocessing import Pool, cpu_count
 
 def initialize_face_analysis():
@@ -136,16 +137,16 @@ def save_results_to_csv(results):
     for result in results:
         video_path, duration, face_positions, eye_endpoint = result
         base_name = os.path.splitext(os.path.basename(video_path))[0]
-        csv_filename = f"{base_name}_faces.csv"
+        output_csv = f"output_{base_name}.csv"
 
-        with open(csv_filename, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(["video_path", "duration", "face_x", "face_y", "face_w", "face_h", "eye1_x", "eye1_y", "eye2_x", "eye2_y"])
-
-            for i in range(len(face_positions)):
-                x, y, w, h = face_positions[i]
-                eye1, eye2 = eye_endpoint[i]
-                writer.writerow([video_path, duration, x, y, w, h, eye1[0], eye1[1], eye2[0], eye2[1]])
+        with open(output_csv, "w", newline="") as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(["frame", "x", "y", "w", "h", "eye_point1", "eye_point2"])
+            for i, (positions, eye_points) in enumerate(zip(face_positions, eye_endpoint)):
+                for position, eye_point in zip(positions, eye_points):
+                    x, y, w, h = position  # Unpack position
+                    eye_point1, eye_point2 = eye_point  # Unpack eye points
+                    csvwriter.writerow([i * 5, x, y, w, h, eye_point1, eye_point2])
 
 def process_video_multiprocessing(video_files):
     with Pool(cpu_count()) as pool:
@@ -177,6 +178,31 @@ def intersection_over_union(x1, y1, w1, h1, x2, y2, w2, h2):
 
     iou = inter_area / union_area
     return iou
+
+def load_csv_data(file_path):
+    face_positions = []
+    eye_endpoints = []
+    with open(file_path, "r") as csvfile:
+        csvreader = csv.reader(csvfile)
+        next(csvreader)  # Skip header
+        for row in csvreader:
+            video_path, duration, frame, x, y, w, h, eye_point1, eye_point2 = row
+            face_positions.append([(int(x), int(y), int(w), int(h))])
+            eye_endpoints.append(
+                [
+                    (
+                        (
+                            int(eye_point1[1:-1].split(", ")[0]),
+                            int(eye_point1[1:-1].split(", ")[1]),
+                        ),
+                        (
+                            int(eye_point2[1:-1].split(", ")[0]),
+                            int(eye_point2[1:-1].split(", ")[1]),
+                        ),
+                    )
+                ]
+            )
+    return face_positions, eye_endpoints
 
 def find_matching_faces(csv_files, THRESHOLD = 0.6):
     all_face_positions = []
