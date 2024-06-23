@@ -256,8 +256,17 @@ def find_matching_faces(csv_files, THRESHOLD = 0.6):
         all_face_positions.append(face_positions)
         all_eye_endpoints.append(eye_endpoints)
 
+    if not all_face_positions:
+        print("No face data available in any CSV file.")
+        return []  # Return empty list if no face data available
+
+    try:
+        min_length = min(len(positions) for positions in all_face_positions)
+    except ValueError:
+        print("Error processing face positions; possibly empty data.")
+        return []  # Handle the case where all_face_positions might still be empty
+
     matched_faces = []
-    min_length = min(len(positions) for positions in all_face_positions)
     last_matched_index = 0  # Track the last matched file index
 
     for frame_index in range(min_length):

@@ -12,6 +12,10 @@ haarcascade_frontalcatface_extended.xml
 haarcascade_frontalcatface_default.xml
 shape_predictor_68_face_landmarks.dat
 output
+ive_baddie_*
+pose_sync_ive_baddie*
+output_*
+combined_video.mp4
 
 # video
 video/

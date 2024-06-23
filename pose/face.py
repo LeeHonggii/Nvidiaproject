@@ -186,7 +186,7 @@ def load_csv_data(file_path):
         csvreader = csv.reader(csvfile)
         next(csvreader)  # Skip header
         for row in csvreader:
-            video_path, duration, frame, x, y, w, h, eye_point1, eye_point2 = row
+            frame, x, y, w, h, eye_point1, eye_point2 = row
             face_positions.append([(int(x), int(y), int(w), int(h))])
             eye_endpoints.append(
                 [

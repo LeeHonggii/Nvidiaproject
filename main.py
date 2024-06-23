@@ -39,25 +39,38 @@ def get_video_files(video_dir, extensions):
 
 
 def find_intersections(face_verified_matches, results, frame_similarities, frame_count):
-    # 교집합 저장할 리스트 초기화
+    # Convert face_verified_matches into a set for faster lookup
+    face_match_set = {
+        (frame_number, filename1, filename2)
+        for frame_number, filename1, filename2, *_ in face_verified_matches
+    }
+
+    # Initialize the updated_frame_similarities dictionary to store matching frame details
     updated_frame_similarities = {}
-    updated_frame_count = {}
+    total_frame_count = 0
 
-    # face_verified_matches의 구조가 [(frame_number, filename1, filename2, face_iou, eye_vector1, eye_vector2), ...] 라고 가정
-    face_match_set = {(frame_number, filename1, filename2) for (frame_number, filename1, filename2, face_iou, eye_vector1, eye_vector2) in face_verified_matches}
-
+    # Iterate through the results dictionary, which contains frame numbers and list of result dicts
     for frame_num, result_list in results.items():
+        # Check each result for presence in the face match set (both directions considered)
         for result in result_list:
             csv_file1, csv_file2 = result["similar_files"]
-            if (frame_num, csv_file1, csv_file2) in face_match_set or (frame_num, csv_file2, csv_file1) in face_match_set:
+            # Check both possible file pair orientations
+            if (frame_num, csv_file1, csv_file2) in face_match_set or (
+                frame_num,
+                csv_file2,
+                csv_file1,
+            ) in face_match_set:
                 if frame_num not in updated_frame_similarities:
                     updated_frame_similarities[frame_num] = []
-                updated_frame_similarities[frame_num].append(result)
-                if frame_num not in updated_frame_count:
-                    updated_frame_count[frame_num] = 0
-                updated_frame_count[frame_num] += 1
+                # Append the tuple in the required format (frame number, (file1, file2))
+                updated_frame_similarities[frame_num].append(
+                    (frame_num, (csv_file1, csv_file2))
+                )
+                # Increment for each valid match found
+                total_frame_count += 1
 
-    return updated_frame_similarities, updated_frame_count
+    return updated_frame_similarities
+
 
 def main():
     with ProcessPoolExecutor() as executor:
@@ -78,43 +91,74 @@ def main():
             print("Face Detection did not return any results.")
 
     print("분석을 종료합니다")
-    #print("CSV and Video file mapping (YOLO):")
-    #for video, csv in csv_video_mapping.items():
-        #print(f"{video} -> {csv}")
+    # print("CSV and Video file mapping (YOLO):")
+    # for video, csv in csv_video_mapping.items():
+    # print(f"{video} -> {csv}")
 
     # 자동 매핑된 CSV 파일 목록을 csv_files 리스트에 추가
     csv_files = [csv_video_mapping[video] for video in video_files if video in csv_video_mapping]
     if not csv_files:
         print("No CSV files mapped from the videos.")
         return
-    # 자동 매핑된 csv 파일 목록을 csv_files 리스트에 추가
-    csv_face_files = [csv_face_mapping[video] for video in video_files if video in csv_face_mapping]
+
+    print(csv_files)
+
+    csv_face_files = []
+    for video in video_files:
+        # Extract the base filename without the path and extension
+        base_name = os.path.basename(video).split(".")[0]
+        # Construct the CSV filename assuming it's in the current directory
+        csv_path = f"output_{base_name}.csv"
+        if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
+            csv_face_files.append(csv_path)
+        else:
+            print(f"CSV file {csv_path} is missing or empty for video {video}")
     if not csv_face_files:
-        print("No CSV files mapped from the videos.")
-    
-    # face csv 에서 나온 결괏값을 기반으로 best matching point 찾기
-    matched_faces = find_matching_faces(csv_face_files)
+        print("No valid CSV files available for face matching.")
+    else:
+        # Now that we have valid CSV files, process them
+        matched_faces = find_matching_faces(csv_face_files)
+
     # 검증된 face match 기록 찾기
     face_verified_matches = process_matches(matched_faces, video_files)
-    # csv파일로 저장 
+
+    # csv파일로 저장
     save_verified_matches(face_verified_matches)
 
     video_file_mapping = {csv: video for video, csv in csv_video_mapping.items()}
 
-    frame_number, filename1, filename2, face_iou, eye_vector1, eye_vector2 = face_verified_matches
+    for (
+        frame_number,
+        filename1,
+        filename2,
+        face_iou,
+        eye_vector1,
+        eye_vector2,
+    ) in face_verified_matches:
+        pass
 
     results, verified_matches, frame_similarities, frame_count, best_vectors = calculate_similarities(
         csv_files, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
     )
 
+    # frame similarities = (frame_number, (file1, file2))
+    # {[(3387, ("ive_baddie_5.csv", "ive_baddie_3.csv")), ...]}
+    # print("frame_count : ", frame_count)
+
     # TODO : 교집합 찾기
+    n_frame_similarities = find_intersections(
+        face_verified_matches, results, frame_similarities, frame_count
+    )
+    print(n_frame_similarities)
+    print("processed_frame_count : ", frame_count)
+    print("processed_n_frame_similarities : ", n_frame_similarities)
 
-    n_frame_similarities, n_frame_count = find_intersections(face_verified_matches, results)
+    max_transformation_order = find_max_transformation_order(
+        n_frame_similarities, frame_count, RANDOM_POINT
+    )
 
-    max_transformation_order = find_max_transformation_order(n_frame_similarities, n_frame_count, RANDOM_POINT)
-
-    #print("최대 변환 순서:", max_transformation_order)
-    #print("검증된 매칭 결과:", verified_matches)
+    # print("최대 변환 순서:", max_transformation_order)
+    # print("검증된 매칭 결과:", verified_matches)
 
     json_data = generate_json(max_transformation_order, verified_matches, video_files, csv_files, video_file_mapping,
                               best_vectors)
@@ -122,7 +166,7 @@ def main():
     with open('output_pose.json', 'w') as f:
         json.dump(json_data, f, indent=4)
 
-    #print("JSON 파일이 생성되었습니다.")
+    # print("JSON 파일이 생성되었습니다.")
     print("영상 제작 시작합니다")
     # JSON 파일을 기반으로 비디오 합치기
     create_combined_video('output_pose.json', 'combined_video.mp4')
