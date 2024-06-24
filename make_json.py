@@ -1,7 +1,7 @@
 import json
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 
-def generate_json(max_transformation_order, verified_matches, video_files, csv_files, video_file_mapping, best_vectors):
+def generate_json(max_transformation_order, verified_matches, video_files, csv_files, video_file_mapping, best_vectors, scene):
     num_streams = len(video_files)
     fps = [29.97] * num_streams  # 각 비디오의 fps (임시 값)
     total_frames = [774] * num_streams  # 각 비디오의 총 프레임 수 (임시 값)
@@ -44,13 +44,8 @@ def generate_json(max_transformation_order, verified_matches, video_files, csv_f
         "streams": streams,
         "cross_points": cross_points,
         "scene_list": [
-        [100, 500, 1000, 1500],
-        [200, 500, 1500, 3000],
-        [100, 510, 1000, 1500],
-        [400, 500, 1000, 1500],
-        [150, 500, 1000, 1500],
-        [800, 500, 1000, 1500],
-    ]
+                        scene
+                    ]
     }
 
     return json_data

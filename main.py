@@ -159,7 +159,7 @@ def main():
     detected_scene = frame_difference_detection(video_files)
 
     json_data = generate_json(max_transformation_order, verified_matches, video_files, csv_files, video_file_mapping,
-                              best_vectors)
+                              best_vectors, detected_scene)
 
     with open('output_pose.json', 'w') as f:
         json.dump(json_data, f, indent=4)
