@@ -154,6 +154,10 @@ def main():
     # print("최대 변환 순서:", max_transformation_order)
     # print("검증된 매칭 결과:", verified_matches)
 
+
+    # scene detection
+    detected_scene = frame_difference_detection(video_files)
+
     json_data = generate_json(max_transformation_order, verified_matches, video_files, csv_files, video_file_mapping,
                               best_vectors)
 
@@ -162,8 +166,9 @@ def main():
 
     # print("JSON 파일이 생성되었습니다.")
     print("영상 제작 시작합니다")
-    # JSON 파일을 기반으로 비디오 합치기
-    create_combined_video('output_pose.json', 'combined_video.mp4')
+
+    # # JSON 파일을 기반으로 비디오 합치기
+    # create_combined_video('output_pose.json', 'combined_video.mp4')
 
     json_file = "output_pose.json"
     with open(json_file, "r", encoding="utf-8") as file:
