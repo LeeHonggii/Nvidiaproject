@@ -6,6 +6,7 @@ from pose.pose_similarity import calculate_similarities
 from pose.transformation import find_max_transformation_order
 from make_json import generate_json, create_combined_video
 from pose.face import process_video_multiprocessing, find_matching_faces, process_matches, save_verified_matches, frame_difference_detection
+from video_editor.video_editor import run_video_editor
 import torch
 import json
 
@@ -163,6 +164,11 @@ def main():
     print("영상 제작 시작합니다")
     # JSON 파일을 기반으로 비디오 합치기
     create_combined_video('output_pose.json', 'combined_video.mp4')
+
+    json_file = "output_pose.json"
+    with open(json_file, "r", encoding="utf-8") as file:
+        json_string_from_file = file.read()
+    run_video_editor(json_string_from_file)
     print("최종 비디오가 생성되었습니다.")
 
 
