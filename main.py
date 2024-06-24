@@ -50,16 +50,17 @@ def find_intersections(face_verified_matches, frame_similarities):
     # Initialize the updated_frame_similarities dictionary to store matching frame details
     updated_frame_similarities = {}
     for file, similarities in frame_similarities.items():
-        for frame, (next_frame, (file1, file2)) in enumerate(similarities):
-
-            if (next_frame, file1, file2) in face_match_set:
-                if next_frame not in updated_frame_similarities:
-                    updated_frame_similarities[next_frame] = []
-                updated_frame_similarities[next_frame].append((file1, file2))
-            elif (next_frame, file2, file1) in face_match_set:
-                if next_frame not in updated_frame_similarities:
-                    updated_frame_similarities[next_frame] = []
-                updated_frame_similarities[next_frame].append((file2, file1))
+        for frame, (next_frame1, (file1_1, file2_1)) in enumerate(similarities):
+            print(next_frame1, file1_1, file2_1)
+            if (next_frame2, file1_2, file2_2) in face_match_set:
+                print(next_frame2, file1_2, file2_2)
+                if next_frame1 not in updated_frame_similarities:
+                    updated_frame_similarities[next_frame1] = []
+                updated_frame_similarities[next_frame1].append((file1_1, file2_1))
+            elif (next_frame1, file2_1, file1_1) in face_match_set:
+                if next_frame1 not in updated_frame_similarities:
+                    updated_frame_similarities[next_frame1] = []
+                updated_frame_similarities[next_frame1].append((file2_1, file1_1))
     print(updated_frame_similarities)
     return updated_frame_similarities
 

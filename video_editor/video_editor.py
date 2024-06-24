@@ -3,7 +3,7 @@ from moviepy.editor import VideoFileClip, concatenate_videoclips, CompositeVideo
 import json
 import random
 import time
-from adjust import get_adjusted_clip, vector_interpolation, adjust_vector, find_in_between
+from video_editor.adjust import get_adjusted_clip, vector_interpolation, adjust_vector, find_in_between
 
 def run_video_editor(parameter):
     begin_time = time.time()

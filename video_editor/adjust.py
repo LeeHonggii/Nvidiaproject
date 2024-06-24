@@ -4,7 +4,7 @@ from sympy import symbols, Eq, solve
 import numpy as np
 import bisect
 import random
-from line_add import prepare_sample
+# from line_add import prepare_sample
 
 dot_product = lambda v1, v2: v1[0] * v2[0] + v1[1] * v2[1]
 cross_product = lambda v1, v2: v1[0] * v2[1] - v1[1] * v2[0]
