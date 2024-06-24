@@ -46,7 +46,7 @@ def process_video(video_path):
 
     input_file_name = os.path.splitext(os.path.basename(video_path))[0]
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    output_video_path = f"output_{input_file_name}.mp4"
+    output_video_path = f"final_output_{input_file_name}.mp4"
     out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
     while frame_count < total_frames:
@@ -54,9 +54,9 @@ def process_video(video_path):
         if not ret:
             break
 
-        frame_count += 1
-        if frame_count % 5 != 0:
-            continue
+        # frame_count += 1
+        # if frame_count % 5 != 0:
+        #     continue
         display_frame = frame.copy()
 
         cv2.line(display_frame, (line1_x, 0), (line1_x, height), (255, 255, 0), 2)
