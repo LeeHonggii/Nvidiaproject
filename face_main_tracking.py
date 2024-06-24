@@ -44,6 +44,11 @@ def process_video(video_path):
     face_recognitions = []
     eye_endpoint = []
 
+    input_file_name = os.path.splitext(os.path.basename(video_path))[0]
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
+    output_video_path = f"output_{input_file_name}.mp4"
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+
     while frame_count < total_frames:
         ret, frame = cap.read()
         if not ret:
@@ -75,10 +80,21 @@ def process_video(video_path):
             face_center_x = bbox[0] + (bbox[2] - bbox[0]) // 2
             face_center_y = bbox[1] + (bbox[3] - bbox[1]) // 2
 
+            cv2.rectangle(
+                display_frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (255, 0, 0), 2
+            )
+
             if (
                 line1_x <= face_center_x <= line2_x
                 and line1_y <= face_center_y <= line2_y
             ):
+                cv2.rectangle(
+                    display_frame,
+                    (bbox[0], bbox[1]),
+                    (bbox[2], bbox[3]),
+                    (0, 255, 0),
+                    3,
+                )
                 distance = abs(face_center_x - target_x) + abs(face_center_y - target_y)
                 if best_face is None or distance < best_face[1]:
                     best_face = (face, distance)
@@ -96,8 +112,8 @@ def process_video(video_path):
                 display_frame,
                 (bbox[0], bbox[1]),
                 (bbox[2], bbox[3]),
-                (0, 255, 0),
-                2,
+                (0, 0, 255),
+                4,
             )
             if "landmark_2d_106" in face:
                 lmk = face["landmark_2d_106"]
@@ -127,11 +143,14 @@ def process_video(video_path):
             eye_endpoint.append([((0, 0), (0, 0))])  # Use tuple of tuples
             face_recognitions.append([[]])  # This already matches expected structure
 
+        out.write(display_frame)
+
         cv2.imshow(window_name, display_frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     cap.release()
+    out.release()
     cv2.destroyAllWindows()
 
     input_file_name = os.path.splitext(os.path.basename(video_path))[0]
