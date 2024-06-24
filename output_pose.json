@@ -1,6 +1,6 @@
 {
     "meta_info": {
-        "num_stream": 8,
+        "num_stream": 6,
         "metric": "time",
         "frame_rate": 29.97,
         "num_frames": 774,
@@ -13,42 +13,32 @@
     },
     "streams": [
         {
-            "file": "c:\\Users\\birth\\Desktop\\Nvidiaproject\\data\\ive_baddie_1.mp4",
+            "file": "C:\\Users\\hancom10\\Desktop\\NP\\Nvidiaproject\\data\\ive_baddie_1.mp4",
             "start": 0,
             "end": 0
         },
         {
-            "file": "c:\\Users\\birth\\Desktop\\Nvidiaproject\\data\\ive_baddie_2.mp4",
+            "file": "C:\\Users\\hancom10\\Desktop\\NP\\Nvidiaproject\\data\\ive_baddie_2.mp4",
             "start": 0,
             "end": 0
         },
         {
-            "file": "c:\\Users\\birth\\Desktop\\Nvidiaproject\\data\\ive_baddie_3.mp4",
+            "file": "C:\\Users\\hancom10\\Desktop\\NP\\Nvidiaproject\\data\\ive_baddie_3.mp4",
             "start": 0,
             "end": 0
         },
         {
-            "file": "c:\\Users\\birth\\Desktop\\Nvidiaproject\\data\\ive_baddie_4.mp4",
+            "file": "C:\\Users\\hancom10\\Desktop\\NP\\Nvidiaproject\\data\\ive_baddie_4.mp4",
             "start": 0,
             "end": 0
         },
         {
-            "file": "c:\\Users\\birth\\Desktop\\Nvidiaproject\\data\\ive_baddie_5.mp4",
+            "file": "C:\\Users\\hancom10\\Desktop\\NP\\Nvidiaproject\\data\\ive_baddie_5.mp4",
             "start": 0,
             "end": 0
         },
         {
-            "file": "c:\\Users\\birth\\Desktop\\Nvidiaproject\\data\\ive_baddie_6.mp4",
-            "start": 0,
-            "end": 0
-        },
-        {
-            "file": "c:\\Users\\birth\\Desktop\\Nvidiaproject\\data\\pose_sync_ive_baddie_1.mp4",
-            "start": 0,
-            "end": 0
-        },
-        {
-            "file": "c:\\Users\\birth\\Desktop\\Nvidiaproject\\data\\pose_sync_ive_baddie_2.mp4",
+            "file": "C:\\Users\\hancom10\\Desktop\\NP\\Nvidiaproject\\data\\ive_baddie_6.mp4",
             "start": 0,
             "end": 0
         }

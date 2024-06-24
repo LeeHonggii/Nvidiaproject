@@ -38,8 +38,9 @@ def get_video_files(video_dir, extensions):
     return video_files
 
 
-def find_intersections(face_verified_matches, results, frame_similarities, frame_count):
+def find_intersections(face_verified_matches, frame_similarities):
     # Convert face_verified_matches into a set for faster lookup
+
     face_match_set = {
         (frame_number, filename1, filename2)
         for frame_number, filename1, filename2, *_ in face_verified_matches
@@ -47,32 +48,23 @@ def find_intersections(face_verified_matches, results, frame_similarities, frame
 
     # Initialize the updated_frame_similarities dictionary to store matching frame details
     updated_frame_similarities = {}
-    total_frame_count = 0
+    for file, similarities in frame_similarities.items():
+        for frame, (next_frame, (file1, file2)) in enumerate(similarities):
 
-    # Iterate through the results dictionary, which contains frame numbers and list of result dicts
-    for frame_num, result_list in results.items():
-        # Check each result for presence in the face match set (both directions considered)
-        for result in result_list:
-            csv_file1, csv_file2 = result["similar_files"]
-            # Check both possible file pair orientations
-            if (frame_num, csv_file1, csv_file2) in face_match_set or (
-                frame_num,
-                csv_file2,
-                csv_file1,
-            ) in face_match_set:
-                if frame_num not in updated_frame_similarities:
-                    updated_frame_similarities[frame_num] = []
-                # Append the tuple in the required format (frame number, (file1, file2))
-                updated_frame_similarities[frame_num].append(
-                    (frame_num, (csv_file1, csv_file2))
-                )
-                # Increment for each valid match found
-                total_frame_count += 1
-
+            if (next_frame, file1, file2) in face_match_set:
+                if next_frame not in updated_frame_similarities:
+                    updated_frame_similarities[next_frame] = []
+                updated_frame_similarities[next_frame].append((file1, file2))
+            elif (next_frame, file2, file1) in face_match_set:
+                if next_frame not in updated_frame_similarities:
+                    updated_frame_similarities[next_frame] = []
+                updated_frame_similarities[next_frame].append((file2, file1))
+    print(updated_frame_similarities)
     return updated_frame_similarities
 
 
 def main():
+
     with ProcessPoolExecutor() as executor:
         print("영상 분석 시작합니다")
         print("영상 분석 중 입니다")
@@ -140,6 +132,7 @@ def main():
     results, verified_matches, frame_similarities, frame_count, best_vectors = calculate_similarities(
         csv_files, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
     )
+    print(frame_similarities)
 
     # frame similarities = (frame_number, (file1, file2))
     # {[(3387, ("ive_baddie_5.csv", "ive_baddie_3.csv")), ...]}
@@ -147,7 +140,7 @@ def main():
 
     # TODO : 교집합 찾기
     n_frame_similarities = find_intersections(
-        face_verified_matches, results, frame_similarities, frame_count
+        face_verified_matches,frame_similarities
     )
     print(n_frame_similarities)
     print("processed_frame_count : ", frame_count)
