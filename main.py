@@ -109,22 +109,14 @@ def main():
         matched_faces = find_matching_faces(csv_face_files)
 
     # 검증된 face match 기록 찾기
-    face_verified_matches = process_matches(matched_faces, video_files)
+    simple_verified_matches, detailed_verified_matches = process_matches(matched_faces, video_files)
 
     # csv파일로 저장
-    save_verified_matches(face_verified_matches)
+    save_verified_matches(detailed_verified_matches)
 
     video_file_mapping = {csv: video for video, csv in csv_video_mapping.items()}
 
-    for (
-        frame_number,
-        filename1,
-        filename2,
-        face_iou,
-        eye_vector1,
-        eye_vector2,
-    ) in face_verified_matches:
-        pass
+
 
     results, verified_matches, frame_similarities, frame_count, best_vectors = calculate_similarities(
         csv_files, WIDTH, HEIGHT, THRESHOLD, POSITION_THRESHOLD, SIZE_THRESHOLD, AVG_SIMILARITY_THRESHOLD
@@ -137,7 +129,7 @@ def main():
 
     # TODO : 교집합 찾기
     n_frame_similarities = find_intersections(
-        face_verified_matches,frame_similarities
+        simple_verified_matches,frame_similarities
     )
     print(n_frame_similarities)
     print("processed_frame_count : ", frame_count)
@@ -152,7 +144,8 @@ def main():
 
 
     # scene detection
-    detected_scene = frame_difference_detection(video_files)
+    #detected_scene = frame_difference_detection(video_files)
+    detected_scene =[[0,100]]
 
     json_data = generate_json(max_transformation_order, verified_matches, video_files, csv_files, video_file_mapping,
                               best_vectors, detected_scene)
