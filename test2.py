@@ -1,3 +1,4 @@
+import numpy as np
 def find_max_transformation_order(frame_similarities, frame_count, random_point):
     frames = sorted(frame_similarities.keys())
     n = len(frames)
@@ -29,15 +30,21 @@ def find_max_transformation_order(frame_similarities, frame_count, random_point)
 
     optimal_path.reverse()
 
-    return optimal_path
+    return optimal_path, int(max_transitions)
 
-def get_similar_frames_dict(results):
-    frame_similarities = {}
-    for frame_num in results:
-        for result in results[frame_num]:
-            file_pair = result['similar_files']
-            for file in file_pair:
-                if file not in frame_similarities:
-                    frame_similarities[file] = []
-                frame_similarities[file].append((frame_num, file_pair))
-    return frame_similarities
+# 예시 데이터
+frame_similarities = {
+    2165: [('sync_bts_fakelove_1.csv', 'sync_bts_fakelove_3.csv'), ('sync_bts_fakelove_3.csv', 'sync_bts_fakelove_1.csv')],
+    3320: [('sync_bts_fakelove_4.csv', 'sync_bts_fakelove_1.csv'), ('sync_bts_fakelove_1.csv', 'sync_bts_fakelove_4.csv')],
+    3605: [('sync_bts_fakelove_4.csv', 'sync_bts_fakelove_1.csv'), ('sync_bts_fakelove_1.csv', 'sync_bts_fakelove_4.csv')],
+    5885: [('sync_bts_fakelove_1.csv', 'sync_bts_fakelove_3.csv'), ('sync_bts_fakelove_3.csv', 'sync_bts_fakelove_1.csv')],
+    5845: [('sync_bts_fakelove_5.csv', 'sync_bts_fakelove_2.csv'), ('sync_bts_fakelove_2.csv', 'sync_bts_fakelove_5.csv')],
+    6530: [('sync_bts_fakelove_6.csv', 'sync_bts_fakelove_2.csv'), ('sync_bts_fakelove_2.csv', 'sync_bts_fakelove_6.csv')],
+    1635: [('sync_bts_fakelove_5.csv', 'sync_bts_fakelove_4.csv'), ('sync_bts_fakelove_4.csv', 'sync_bts_fakelove_5.csv')]
+}
+frame_count = 7000
+random_point = 10
+
+optimal_path, max_transitions = find_max_transformation_order(frame_similarities, frame_count, random_point)
+print("최적 경로: ", optimal_path)
+print("최대 전환 횟수: ", max_transitions)
