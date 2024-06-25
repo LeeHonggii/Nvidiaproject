@@ -1,79 +1,42 @@
+import numpy as np
 def find_max_transformation_order(frame_similarities, frame_count, random_point):
-    max_transitions = [0] * frame_count
-    previous_frame = [-1] * frame_count
-    previous_file = [None] * frame_count
-    current_file = [None] * frame_count
+    frames = sorted(frame_similarities.keys())
+    n = len(frames)
 
-    # 초기 파일 설정
-    for file, similarities in frame_similarities.items():
-        for frame, (next_frame, (file1, file2)) in enumerate(similarities):
-            if frame < frame_count:
-                max_transitions[frame] = 1
-                previous_frame[frame] = -1
-                previous_file[frame] = None
-                current_file[frame] = file1
+    # DP 테이블 초기화: 전환 횟수를 저장하는 테이블
+    dp = np.zeros(n)
+    path = [None] * n
 
-    # 각 프레임에 대해 반복
-    for frame in range(frame_count):
-        if current_file[frame] is None:
-            continue
+    for i in range(n):
+        for j in range(i):
+            if frames[i] - frames[j] >= random_point:
+                for transition in frame_similarities[frames[i]]:
+                    if transition[0] in [pair[1] for pair in frame_similarities[frames[j]]]:
+                        if dp[i] < dp[j] + 1:
+                            dp[i] = dp[j] + 1
+                            path[i] = (frames[j], transition[0], transition[1])
 
-        for next_frame, (file1, file2) in frame_similarities.get(
-            current_file[frame], []
-        ):
-            if next_frame >= frame + random_point:
-                # 다음 프레임으로의 전환이 중복되지 않도록 확인
-                if (
-                    next_frame < frame_count
-                    and max_transitions[next_frame] < max_transitions[frame] + 1
-                    and current_file[frame] != file2
-                ):
-                    max_transitions[next_frame] = max_transitions[frame] + 1
-                    previous_frame[next_frame] = frame
-                    previous_file[next_frame] = current_file[frame]
-                    current_file[next_frame] = file2
+    # 최대 전환 횟수 및 해당 경로 추적
+    max_transitions = max(dp)
+    max_index = np.argmax(dp)
 
-    # 최대 전환 횟수를 가진 마지막 프레임을 찾음
-    last_frame = max(range(frame_count), key=lambda x: max_transitions[x])
-    transformation_order = []
-    current_frame = last_frame
+    # 경로 재구성
+    optimal_path = []
+    while max_index is not None and path[max_index] is not None:
+        frame, start_csv, end_csv = frames[max_index], path[max_index][1], path[max_index][2]
+        optimal_path.append((frame, start_csv, end_csv))
+        next_frame = path[max_index][0]
+        max_index = frames.index(next_frame) if next_frame in frames else None
 
-    while current_frame != -1:
-        if previous_file[current_frame] and current_file[current_frame]:
-            transformation_order.append(
-                (
-                    current_frame,
-                    previous_file[current_frame],
-                    current_file[current_frame],
-                )
-            )
-        current_frame = previous_frame[current_frame]
+    optimal_path.reverse()
 
-    # 최적 경로를 역추적
-    while current_frame != -1:
-        if (
-            previous_file[current_frame] is not None
-            and current_file[current_frame] is not None
-        ):
-            transformation_order.append(
-                (
-                    current_frame,
-                    previous_file[current_frame],
-                    current_file[current_frame],
-                )
-            )
-        current_frame = previous_frame[current_frame]
-
-    # 경로를 역순으로 정렬
-    transformation_order.reverse()
-    return transformation_order
-
+    return optimal_path
 
 def get_similar_frames_dict(results):
     frame_similarities = {}
     for frame_num in results:
         for result in results[frame_num]:
-            file_pair = result["similar_files"]
+            file_pair = result['similar_files']
             for file in file_pair:
                 if file not in frame_similarities:
                     frame_similarities[file] = []

@@ -41,27 +41,22 @@ def get_video_files(video_dir, extensions):
 
 def find_intersections(face_verified_matches, frame_similarities):
     # Convert face_verified_matches into a set for faster lookup
-
     face_match_set = {
         (frame_number, filename1, filename2)
-        for frame_number, filename1, filename2, *_ in face_verified_matches
+        for frame_number, filename1, filename2 in face_verified_matches
     }
 
     # Initialize the updated_frame_similarities dictionary to store matching frame details
     updated_frame_similarities = {}
     for file, similarities in frame_similarities.items():
-        for frame, (next_frame1, (file1_1, file2_1)) in enumerate(similarities):
-            print(next_frame1, file1_1, file2_1)
-            if (next_frame2, file1_2, file2_2) in face_match_set:
-                print(next_frame2, file1_2, file2_2)
-                if next_frame1 not in updated_frame_similarities:
-                    updated_frame_similarities[next_frame1] = []
-                updated_frame_similarities[next_frame1].append((file1_1, file2_1))
-            elif (next_frame1, file2_1, file1_1) in face_match_set:
-                if next_frame1 not in updated_frame_similarities:
-                    updated_frame_similarities[next_frame1] = []
-                updated_frame_similarities[next_frame1].append((file2_1, file1_1))
-    print(updated_frame_similarities)
+        for (frame_num, (file1, file2)) in similarities:
+            file1_base = os.path.splitext(file1)[0]
+            file2_base = os.path.splitext(file2)[0]
+            if (frame_num, file1_base, file2_base) in face_match_set or (frame_num, file2_base, file1_base) in face_match_set:
+                if frame_num not in updated_frame_similarities:
+                    updated_frame_similarities[frame_num] = []
+                if (file1, file2) not in updated_frame_similarities[frame_num]:
+                    updated_frame_similarities[frame_num].append((file1, file2))
     return updated_frame_similarities
 
 
@@ -152,7 +147,7 @@ def main():
         n_frame_similarities, frame_count, RANDOM_POINT
     )
 
-    # print("최대 변환 순서:", max_transformation_order)
+    print("최대 변환 순서:", max_transformation_order)
     # print("검증된 매칭 결과:", verified_matches)
 
 

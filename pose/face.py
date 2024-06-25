@@ -306,14 +306,25 @@ def build_transition_graph(matched_faces, csv_files):
     return graph
 
 def process_matches(matched_faces, video_files):
-    graph = build_transition_graph(matched_faces, video_files)
-    # Assuming the matches include frame numbers and IOU scores now
-    verified_matches = [
-        (frame, video_files[index1], video_files[index2], iou, eye1, eye2)
-        for frame, index1, index2, iou, eye1, eye2 in matched_faces
+    # Map video files to base filenames without extensions
+    video_file_mapping = {video: os.path.splitext(os.path.basename(video))[0] for video in video_files}
+
+    # Build a dictionary to store the verified matches in the desired format
+    verified_matches = []
+
+    for (frame, index1, index2, iou, eye1, eye2) in matched_faces:
+        video1 = video_file_mapping[video_files[index1]]
+        video2 = video_file_mapping[video_files[index2]]
+        verified_matches.append((frame, video1, video2, iou, eye1, eye2))
+
+    # Return only the frame number and filenames in the expected format
+    simple_verified_matches = [
+        (frame, file1, file2)
+        for frame, file1, file2, _, _, _ in verified_matches
     ]
 
-    return verified_matches
+    return simple_verified_matches, verified_matches
+
 
 def save_verified_matches(verified_matches, filename="verified_matches.csv"):
     with open(filename, "w", newline="", encoding="utf-8") as file:
@@ -327,7 +338,7 @@ def frame_difference_detection(
     video_path, threshold=20, resize_factor=1, aggregation_window=18
 ):
     frame_list = []
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(video_path, cv2.CAP_ANY)
     transition_count = 0
     total_frames = 0
     added_frames = 0  # To keep track of how many times we've added an extra frame
